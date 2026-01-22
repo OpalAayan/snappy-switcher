@@ -29,7 +29,7 @@ provides=("$pkgname")
 conflicts=("$pkgname-git")
 # Use this for release versions. For now, we SKIP the check.
 source=("$url/archive/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('a3e9d527f1598c0ad59b22a9a7f52bc4f8c0ed690a3a22d0fc75d5afc6df24f1')
 
 build() {
   cd "$pkgname-$pkgver"

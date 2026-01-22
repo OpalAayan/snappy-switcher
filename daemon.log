@@ -1,9 +1,0 @@
-[Config] Loading config from /home/aayanopal/.config/snappy-switcher/config.ini
-[Icons] Initialized: theme=Tela-dracula, fallback=Tela-circle-dracula
-[Daemon] Keyboard listener attached
-[Socket] Removed stale socket file from previous instance
-[Socket] Server listening on /tmp/snappy-switcher.sock
-[Daemon] Daemon Started (PID: 94229)
-[Daemon] Cleaning up...
-[Socket] Server cleaned up
-[Icons] Cache cleared

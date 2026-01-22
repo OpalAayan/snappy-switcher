@@ -8,6 +8,7 @@
 [![Language](https://img.shields.io/badge/Language-C-orange?style=for-the-badge&logo=c)](https://en.cppreference.com/w/c)
 [![Platform](https://img.shields.io/badge/Platform-Hyprland-58E1FF?style=for-the-badge&logo=wayland)](https://hyprland.org/)
 [![Version](https://img.shields.io/badge/Version-1.0-success?style=for-the-badge)]()
+[![AUR](https://img.shields.io/aur/version/snappy-switcher?color=blue&label=AUR&logo=arch-linux&style=for-the-badge)](https://aur.archlinux.org/packages/snappy-switcher)
 
 <br/>
 
@@ -95,13 +96,39 @@ graph TB
 
 ## 📦 Installation
 
-### Arch Linux (Recommended)
+### <img src="https://img.shields.io/badge/AUR-1793D1?style=flat&logo=archlinux&logoColor=white" height="20"/> Arch Linux (AUR)
+
+<table>
+<tr>
+<td>
+
+**Using Yay**
+```bash
+yay -S snappy-switcher
+```
+
+</td>
+<td>
+
+**Using Paru**
+```bash
+paru -S snappy-switcher
+```
+
+</td>
+</tr>
+</table>
+
+<details>
+<summary>📦 <b>Build from PKGBUILD</b></summary>
 
 ```bash
 git clone https://github.com/OpalAayan/snappy-switcher.git
 cd snappy-switcher
 makepkg -si
 ```
+
+</details>
 
 ### Manual Build
 
@@ -119,6 +146,11 @@ makepkg -si
 | `librsvg` | SVG icons *(optional)* |
 
 </details>
+
+**Install dependencies (Arch):**
+```bash
+sudo pacman -S wayland cairo pango json-c libxkbcommon glib2 librsvg
+```
 
 ```bash
 # Build
