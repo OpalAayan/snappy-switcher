@@ -27,6 +27,7 @@ struct WindowNode {
   char *identifier;
   int state;
   int is_active;
+  int is_minimized;
   WindowNode *next;
 };
 typedef struct {
@@ -127,6 +128,7 @@ toplevel_handle_state(void *data,
 
   window->state = 0;
   window->is_active = 0;
+  window->is_minimized = 0;
 
   uint32_t *state;
   wl_array_for_each(state, wl_state) {
@@ -134,8 +136,10 @@ toplevel_handle_state(void *data,
     if (*state == ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED) {
       window->is_active = 1;
     }
+    if (*state == ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED) {
+      window->is_minimized = 1;
+    }
   }
-  LOG("Window state updated: active=%d", window->is_active);
 }
 
 static void
@@ -388,6 +392,12 @@ int wlr_get_windows(AppState *state, Config *config) {
 
   while (curr) {
     WindowInfo info;
+
+    if (curr->is_minimized) {
+      curr = curr->next;
+      continue;
+    }
+
     info.address = strdup(curr->identifier ? curr->identifier : "");
     info.title = strdup(curr->title ? curr->title : "Untitled");
     info.class_name = strdup(curr->app_id ? curr->app_id : "unknown");
