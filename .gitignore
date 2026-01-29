@@ -1,4 +1,6 @@
 *.log
 *.tar.gz
 *.o
+*-protocol.h
+*-protocol.c
 snappy-switcher
