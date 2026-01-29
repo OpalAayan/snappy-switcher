@@ -16,6 +16,34 @@
 #define BUFFER_SIZE 65536
 #define INITIAL_CAPACITY 32
 
+static char *get_socket_path(void);
+
+int hyprland_backend_init(void) {
+  /* Hyprland backend doesn't need special initialization */
+  /* Just check if we can connect */
+  char *socket_path = get_socket_path();
+  if (!socket_path) {
+    LOG("HYPRLAND_INSTANCE_SIGNATURE or XDG_RUNTIME_DIR not set");
+    return -1;
+  }
+
+  /* Test if socket exists */
+  if (access(socket_path, F_OK) != 0) {
+    free(socket_path);
+    LOG("Hyprland socket not found");
+    return -1;
+  }
+
+  free(socket_path);
+  return 0;
+}
+
+void hyprland_backend_cleanup(void) {
+  /* Nothing to cleanup for Hyprland backend */
+}
+
+const char *hyprland_get_name(void) { return "hyprland"; }
+
 /* --- Memory Management --- */
 void app_state_init(AppState *state) {
   state->windows = NULL;
@@ -53,7 +81,7 @@ static char *safe_strdup(const char *str) {
   return str ? strdup(str) : strdup("");
 }
 
-static int app_state_add(AppState *state, WindowInfo *info) {
+int app_state_add(AppState *state, WindowInfo *info) {
   if (state->count >= state->capacity) {
     int new_cap = state->capacity == 0 ? INITIAL_CAPACITY : state->capacity * 2;
     WindowInfo *new_ptr = realloc(state->windows, new_cap * sizeof(WindowInfo));

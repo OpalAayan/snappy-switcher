@@ -32,6 +32,8 @@ typedef struct {
 /* Initialize AppState */
 void app_state_init(AppState *state);
 
+int app_state_add(AppState *state, WindowInfo *info);
+
 /* Free all resources held by AppState */
 void app_state_free(AppState *state);
 

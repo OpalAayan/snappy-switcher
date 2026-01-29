@@ -21,4 +21,8 @@ int update_window_list(AppState *state, Config *config);
 /* Switch focus to window address */
 void switch_to_window(const char *address);
 
+int hyprland_backend_init(void);
+void hyprland_backend_cleanup(void);
+const char *hyprland_get_name(void);
+
 #endif /* HYPRLAND_H */

@@ -21,8 +21,8 @@ DOCDIR = $(PREFIX)/share/doc/snappy-switcher
 SYSCONFDIR = /etc/xdg/snappy-switcher
 
 # Source files
-SRC = src/main.c src/hyprland.c src/render.c src/input.c src/config.c src/icons.c src/socket.c
-OBJ = $(SRC:.c=.o) src/xdg-shell-protocol.o src/wlr-layer-shell-unstable-v1-protocol.o
+SRC = src/main.c src/hyprland.c src/render.c src/input.c src/config.c src/icons.c src/socket.c src/backend.c src/wlr_backend.c
+OBJ = $(SRC:.c=.o) src/xdg-shell-protocol.o src/wlr-layer-shell-unstable-v1-protocol.o src/wlr-foreign-toplevel-management-unstable-v1-protocol.o
 TARGET = snappy-switcher
 
 # Protocol Paths
@@ -30,26 +30,41 @@ WAYLAND_PROTOCOLS_DIR = $(shell pkg-config --variable=pkgdatadir wayland-protoco
 WAYLAND_SCANNER = $(shell pkg-config --variable=wayland_scanner wayland-scanner)
 XDG_SHELL_XML = $(WAYLAND_PROTOCOLS_DIR)/stable/xdg-shell/xdg-shell.xml
 LAYER_SHELL_XML = protocol/wlr-layer-shell-unstable-v1.xml
+FOREIGN_TOPLEVEL_XML = protocol/wlr-foreign-toplevel-management-unstable-v1.xml
 
-all: $(TARGET)
+all: $(TARGET) protocols
 
 # Compile the Main Program
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
-# Generate Protocol Headers & Code
+# Protocol generation targets
+protocols: src/xdg-shell-client-protocol.h src/wlr-layer-shell-unstable-v1-client-protocol.h src/wlr-foreign-toplevel-management-unstable-v1-client-protocol.h
+
+# Generate XDG Shell Protocol
 src/xdg-shell-protocol.c:
 	$(WAYLAND_SCANNER) private-code $(XDG_SHELL_XML) $@
 src/xdg-shell-client-protocol.h:
 	$(WAYLAND_SCANNER) client-header $(XDG_SHELL_XML) $@
 
+# Generate Layer Shell Protocol
 src/wlr-layer-shell-unstable-v1-protocol.c:
 	$(WAYLAND_SCANNER) private-code $(LAYER_SHELL_XML) $@
 src/wlr-layer-shell-unstable-v1-client-protocol.h:
 	$(WAYLAND_SCANNER) client-header $(LAYER_SHELL_XML) $@
 
+# Generate Foreign Toplevel Management Protocol (新增)
+src/wlr-foreign-toplevel-management-unstable-v1-protocol.c:
+	$(WAYLAND_SCANNER) private-code $(FOREIGN_TOPLEVEL_XML) $@
+src/wlr-foreign-toplevel-management-unstable-v1-client-protocol.h:
+	$(WAYLAND_SCANNER) client-header $(FOREIGN_TOPLEVEL_XML) $@
+
 # Compile C files
 src/main.o: src/main.c src/xdg-shell-client-protocol.h src/wlr-layer-shell-unstable-v1-client-protocol.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# 新增：wlr_backend 需要 foreign toplevel 协议头文件
+src/wlr_backend.o: src/wlr_backend.c src/wlr-foreign-toplevel-management-unstable-v1-client-protocol.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 src/%.o: src/%.c

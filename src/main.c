@@ -1,8 +1,8 @@
 /* src/main.c - Snappy Switcher Daemon (v1.0 Stable) */
 #define _POSIX_C_SOURCE 200809L
 
+#include "backend.h"
 #include "config.h"
-#include "hyprland.h"
 #include "icons.h"
 #include "input.h"
 #include "render.h"
@@ -17,6 +17,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
 #include <wayland-client.h>
@@ -50,8 +52,10 @@ static AppState app_state;
 static Config *config = NULL;
 static int socket_fd = -1;
 
+static Backend *backend = NULL;
+
 /* Startup Race Condition Fix */
-static bool first_show_done = false;
+// static bool first_show_done = false;
 
 /* Signal Handling */
 static volatile sig_atomic_t should_quit = 0;
@@ -168,7 +172,13 @@ static void show_switcher(void) {
   /* Refresh Data */
   app_state_free(&app_state);
   app_state_init(&app_state);
-  if (update_window_list(&app_state, config) < 0) {
+
+  if (!backend) {
+    LOG("Error: Backend not initialized");
+    return;
+  }
+
+  if (backend->get_windows(&app_state, config) < 0) {
     LOG("Failed to update window list");
     return;
   }
@@ -183,12 +193,12 @@ static void show_switcher(void) {
   zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface, 1);
 
   /* Fix Startup Race: Sync with compositor on first show */
-  if (!first_show_done) {
-    LOG("First show sync...");
-    wl_surface_commit(surface);
-    wl_display_roundtrip(display);
-    first_show_done = true;
-  }
+  // if (!first_show_done) {
+  //   LOG("First show sync...");
+  //   wl_surface_commit(surface);
+  //   wl_display_roundtrip(display);
+  //   first_show_done = true;
+  // }
 
   visible = true;
   wl_surface_commit(surface);
@@ -196,10 +206,10 @@ static void show_switcher(void) {
 }
 
 static void select_and_hide(void) {
-  if (visible && app_state.count > 0) {
+  if (visible && app_state.count > 0 && backend) {
     WindowInfo *win = &app_state.windows[app_state.selected_index];
-    LOG("Switching to: %s", win->title);
-    switch_to_window(win->address);
+    LOG("Switching to: %s (using %s backend)", win->title, backend->get_name());
+    backend->activate_window(win->address);
   }
   hide_switcher();
 }
@@ -341,6 +351,13 @@ static int run_daemon(void) {
   icons_init(config->icon_theme, config->icon_fallback);
   app_state_init(&app_state);
 
+  backend = backend_init();
+  if (!backend) {
+    LOG("Failed to initialize backend");
+    return 1;
+  }
+  LOG("Using %s backend", backend->get_name());
+
   /* Callbacks */
   on_alt_release = select_and_hide;
   on_escape = hide_switcher; /* hide without switch */
@@ -354,6 +371,7 @@ static int run_daemon(void) {
   }
   if (!display) {
     LOG("Failed to connect to Wayland");
+    backend_cleanup(backend);
     return 1;
   }
 
@@ -369,6 +387,7 @@ static int run_daemon(void) {
   }
   if (!compositor || !layer_shell || !shm) {
     LOG("Failed to bind Wayland protocols");
+    backend_cleanup(backend);
     return 1;
   }
 
@@ -388,12 +407,13 @@ static int run_daemon(void) {
 
   /* 6. Socket Server */
   socket_fd = init_server();
-  if (socket_fd < 0)
+  if (socket_fd < 0) {
+    backend_cleanup(backend);
     return 1;
+  }
 
   LOG("Daemon Started (PID: %d)", getpid());
 
-  /* 7. Event Loop */
   struct pollfd fds[2];
   fds[0].fd = wl_display_get_fd(display);
   fds[0].events = POLLIN;
@@ -401,8 +421,9 @@ static int run_daemon(void) {
   fds[1].events = POLLIN;
 
   while (running && !should_quit) {
-    while (wl_display_prepare_read(display) != 0)
+    while (wl_display_prepare_read(display) != 0) {
       wl_display_dispatch_pending(display);
+    }
     wl_display_flush(display);
 
     if (poll(fds, 2, 100) < 0) {
@@ -410,7 +431,7 @@ static int run_daemon(void) {
         wl_display_cancel_read(display);
         continue;
       }
-      break; /* Error */
+      break;
     }
 
     if (fds[0].revents & POLLIN) {
@@ -421,11 +442,27 @@ static int run_daemon(void) {
     }
 
     if (fds[1].revents & POLLIN) {
-      int client = accept_client(socket_fd);
-      if (client >= 0) {
-        char *cmd = read_command(client);
-        if (cmd)
-          handle_command(cmd);
+      while (1) {
+        struct sockaddr_un cli_addr;
+        socklen_t clilen = sizeof(cli_addr);
+        int client = accept(socket_fd, (struct sockaddr *)&cli_addr, &clilen);
+        if (client < 0) {
+          if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            break;
+          }
+          LOG("Accept error: %s", strerror(errno));
+          break;
+        }
+
+        char buffer[256];
+        ssize_t n = read(client, buffer, sizeof(buffer) - 1);
+        if (n > 0) {
+          buffer[n] = '\0';
+          if (buffer[n - 1] == '\n')
+            buffer[n - 1] = '\0';
+          LOG("Received command: %s", buffer);
+          handle_command(buffer);
+        }
         close(client);
       }
     }
@@ -437,11 +474,17 @@ static int run_daemon(void) {
   } else {
     LOG("Cleaning up...");
   }
+
   cleanup_server(socket_fd);
   input_cleanup();
   icons_cleanup();
   app_state_free(&app_state);
   free_config(config);
+
+  if (backend) {
+    backend_cleanup(backend);
+    backend = NULL;
+  }
 
   if (layer_surface)
     zwlr_layer_surface_v1_destroy(layer_surface);
@@ -451,8 +494,6 @@ static int run_daemon(void) {
     wl_keyboard_destroy(keyboard);
   if (seat)
     wl_seat_destroy(seat);
-  /* shell/shm/compositor destroyed by display disconnect? No, they are global
-     proxies. Generally ok to leave them to display disconnect. */
   if (display)
     wl_display_disconnect(display);
 
