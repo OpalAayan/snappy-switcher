@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-GPL3-blue?style=for-the-badge&logo=gnu)](LICENSE)
 [![Language](https://img.shields.io/badge/Language-C-orange?style=for-the-badge&logo=c)](https://en.cppreference.com/w/c)
 [![Platform](https://img.shields.io/badge/Platform-Hyprland-58E1FF?style=for-the-badge&logo=wayland)](https://hyprland.org/)
-[![Version](https://img.shields.io/badge/Version-1.0-success?style=for-the-badge)]()
+[![Version](https://img.shields.io/badge/Version-2.0-success?style=for-the-badge)]()
 [![AUR](https://img.shields.io/aur/version/snappy-switcher?color=blue&label=AUR&logo=arch-linux&style=for-the-badge)](https://aur.archlinux.org/packages/snappy-switcher)
 
 <br/>
@@ -126,6 +126,46 @@ paru -S snappy-switcher
 git clone https://github.com/OpalAayan/snappy-switcher.git
 cd snappy-switcher
 makepkg -si
+```
+
+</details>
+
+### <img src="https://img.shields.io/badge/NixOS-5277C3?style=flat&logo=nixos&logoColor=white" height="20"/> Nix / NixOS
+
+<table>
+<tr>
+<td>
+
+**Install with Flakes**
+```bash
+nix profile install github:OpalAayan/snappy-switcher
+```
+
+</td>
+<td>
+
+**Run directly**
+```bash
+nix run github:OpalAayan/snappy-switcher
+```
+
+</td>
+</tr>
+</table>
+
+<details>
+<summary>📦 <b>Add to NixOS Configuration</b></summary>
+
+```nix
+# flake.nix
+{
+  inputs.snappy-switcher.url = "github:OpalAayan/snappy-switcher";
+}
+
+# configuration.nix
+environment.systemPackages = [
+  inputs.snappy-switcher.packages.${pkgs.system}.default
+];
 ```
 
 </details>
@@ -411,7 +451,16 @@ make clean && make
 
 ---
 
-## 💡 Credits & Inspiration
+##  Roadmap (v2.5) Future Planing
+
+| Feature | Description |
+|---------|-------------|
+|  **Mouse Support** | Click window cards to switch (requires `wl_pointer` handling) |
+|  **Smart MRU** | Fix focus history so switching monitors doesn't disrupt MRU order |
+
+---
+
+##  Credits & Inspiration
 
 This project was built with ❤️ for the Linux customization community.
 
@@ -432,6 +481,9 @@ This project was built with ❤️ for the Linux customization community.
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=OpalAayan/snappy-switcher&type=date&legend=top-left)](https://www.star-history.com/#OpalAayan/snappy-switcher&type=date&legend=top-left)
+
+
+<p align="center"><img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/footers/gray0_ctp_on_line.svg?sanitize=true" /></p>
 
 <sub>Licensed under GPL-3.0</sub>
 

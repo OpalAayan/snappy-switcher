@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
 
@@ -51,6 +52,11 @@ int init_server(void) {
     return -1;
   }
 
+  /* Secure socket: owner read/write only (prevents local user attacks) */
+  if (chmod(SOCKET_PATH, 0600) < 0) {
+    LOG("Warning: Could not secure socket permissions: %s", strerror(errno));
+  }
+
   if (listen(server_fd, 5) < 0) {
     LOG("Failed to listen: %s", strerror(errno));
     close(server_fd);
@@ -84,24 +90,6 @@ int accept_client(int srv_fd) {
   }
 
   return client_fd;
-}
-
-/* Read command from client */
-char *read_command(int client_fd) {
-  static char buffer[MAX_CMD_LEN];
-  memset(buffer, 0, sizeof(buffer));
-
-  ssize_t n = read(client_fd, buffer, sizeof(buffer) - 1);
-  if (n <= 0) {
-    return NULL;
-  }
-
-  /* Remove newline if present */
-  char *nl = strchr(buffer, '\n');
-  if (nl)
-    *nl = '\0';
-
-  return buffer;
 }
 
 /* Cleanup server */

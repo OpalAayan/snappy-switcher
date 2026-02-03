@@ -18,7 +18,6 @@
 /* Server functions (daemon) */
 int init_server(void);
 int accept_client(int server_fd);
-char *read_command(int client_fd);
 void cleanup_server(int server_fd);
 int get_server_fd(void);
 

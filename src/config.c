@@ -3,10 +3,12 @@
 
 #include "config.h"
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #define LOG(fmt, ...) fprintf(stderr, "[Config] " fmt "\n", ##__VA_ARGS__)
@@ -230,6 +232,30 @@ static int load_theme(const char *theme_name, Config *cfg) {
   return -1;
 }
 
+/* --- Safe recursive mkdir (no shell execution) --- */
+static int mkdir_recursive(const char *path, mode_t mode) {
+  char tmp[1024];
+  char *p = NULL;
+  size_t len;
+
+  snprintf(tmp, sizeof(tmp), "%s", path);
+  len = strlen(tmp);
+  if (len == 0)
+    return -1;
+  if (tmp[len - 1] == '/')
+    tmp[len - 1] = '\0';
+
+  for (p = tmp + 1; *p; p++) {
+    if (*p == '/') {
+      *p = '\0';
+      if (mkdir(tmp, mode) < 0 && errno != EEXIST)
+        return -1;
+      *p = '/';
+    }
+  }
+  return (mkdir(tmp, mode) < 0 && errno != EEXIST) ? -1 : 0;
+}
+
 /* --- Create Default Config File (Self-Healing) --- */
 static void create_default_config(const char *path) {
   /* Create parent directories if needed */
@@ -241,10 +267,10 @@ static void create_default_config(const char *path) {
   char *last_slash = strrchr(dir_path, '/');
   if (last_slash) {
     *last_slash = '\0';
-    /* Create config directory (mkdir -p equivalent) */
-    char mkdir_cmd[1200];
-    snprintf(mkdir_cmd, sizeof(mkdir_cmd), "mkdir -p '%s'", dir_path);
-    (void)system(mkdir_cmd);
+    /* Create config directory safely (no shell execution) */
+    if (mkdir_recursive(dir_path, 0755) < 0 && errno != EEXIST) {
+      LOG("Failed to create config directory: %s", dir_path);
+    }
   }
 
   FILE *f = fopen(path, "w");

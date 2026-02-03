@@ -1,4 +1,4 @@
-/* src/main.c - Snappy Switcher Daemon (v1.0 Stable) */
+/* src/main.c - Snappy Switcher Daemon (v2.0) */
 #define _POSIX_C_SOURCE 200809L
 
 #include "backend.h"
@@ -552,6 +552,10 @@ static int run_daemon(void) {
 }
 
 int main(int argc, char **argv) {
+  /* Ignore SIGPIPE early: client mode must handle broken pipe via errno,
+   * not be terminated by signal if daemon crashes during send_command() */
+  signal(SIGPIPE, SIG_IGN);
+
   if (argc > 1 && strcmp(argv[1], "--daemon") == 0) {
     return run_daemon();
   } else if (argc > 1) {

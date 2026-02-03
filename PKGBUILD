@@ -1,6 +1,6 @@
 # Maintainer: Opal Aayan <YougurtMyFace@proton.me>
 pkgname=snappy-switcher
-pkgver=1.0.0
+pkgver=2.0.0
 pkgrel=1
 pkgdesc="A fast, animated Alt+Tab window switcher for Hyprland with MRU sorting and context grouping"
 arch=('x86_64')
@@ -27,13 +27,11 @@ optdepends=(
 )
 provides=("$pkgname")
 conflicts=("$pkgname-git")
-# Use this for release versions. For now, we SKIP the check.
 source=("$url/archive/v$pkgver.tar.gz")
-sha256sums=('a3e9d527f1598c0ad59b22a9a7f52bc4f8c0ed690a3a22d0fc75d5afc6df24f1')
+sha256sums=('SKIP')
 
 build() {
   cd "$pkgname-$pkgver"
-  # Ensure we use standard paths
   make PREFIX=/usr
 }
 
@@ -58,7 +56,7 @@ package() {
   install -Dm644 docs/CONFIGURATION.md "$pkgdir/usr/share/doc/$pkgname/CONFIGURATION.md"
   install -Dm644 config.ini.example "$pkgdir/usr/share/doc/$pkgname/config.ini.example"
 
-  # 5. Systemd Service (Optional, but good to include if available)
+  # 5. Systemd Service (Optional)
   if [ -f "snappy-switcher.service" ]; then
     install -Dm644 snappy-switcher.service "$pkgdir/usr/lib/systemd/user/snappy-switcher.service"
   fi

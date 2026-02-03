@@ -1,4 +1,4 @@
-# Makefile - Snappy Switcher v1.0
+# Makefile - Snappy Switcher v2.0.0
 CC = gcc
 PKG_CFLAGS = $(shell pkg-config --cflags wayland-client cairo pango pangocairo json-c xkbcommon)
 PKG_LIBS = $(shell pkg-config --libs wayland-client wayland-cursor cairo pango pangocairo json-c xkbcommon glib-2.0 gobject-2.0)
@@ -73,7 +73,7 @@ src/%.o: src/%.c
 # ═══════════════════════════════════════════════════════════════════════════
 install: $(TARGET)
 	@echo "╔═══════════════════════════════════════════════════════════════╗"
-	@echo "║           Installing Snappy Switcher v1.0                     ║"
+	@echo "║           Installing Snappy Switcher v2.0                     ║"
 	@echo "╚═══════════════════════════════════════════════════════════════╝"
 	@echo ""
 	@echo "Installing binaries to $(BINDIR)..."
@@ -138,7 +138,10 @@ uninstall:
 	@echo "Done! (User config in ~/.config/snappy-switcher was NOT removed)"
 
 clean:
-	rm -f src/*.o src/*-protocol.* $(TARGET)
+	rm -f $(TARGET)
+	rm -f src/*.o
+	rm -f src/*-protocol.c
+	rm -f src/*-client-protocol.h
 
 test: $(TARGET)
 	@chmod +x scripts/stress-test.sh

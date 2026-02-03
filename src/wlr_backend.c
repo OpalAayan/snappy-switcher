@@ -7,6 +7,7 @@
 #include "data.h"
 #include <errno.h>
 #include <poll.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,7 +29,7 @@ struct WindowNode {
   int state;
   int is_active;
   int is_minimized;
-  int activation_serial; // window activation serial
+  uint64_t activation_serial; /* window activation serial */
   WindowNode *next;
 };
 
@@ -41,7 +42,7 @@ typedef struct {
   int window_count;
   int initialized;
   int needs_refresh;
-  int activation_counter; // global activation counter
+  uint64_t activation_counter; /* global activation counter */
 } WlrBackendState;
 
 static WlrBackendState backend_state = {0};
@@ -487,8 +488,8 @@ int wlr_get_windows(AppState *state, Config *config) {
       window_info_free(&info);
       LOG("Failed to add window to AppState");
     } else {
-      LOG("Added window %d: %s (%s), activation_serial: %d", index, info.title,
-          info.class_name, curr->activation_serial);
+      LOG("Added window %d: %s (%s), activation_serial: %lu", index, info.title,
+          info.class_name, (unsigned long)curr->activation_serial);
     }
 
     curr = curr->next;
