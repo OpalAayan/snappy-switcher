@@ -27,7 +27,7 @@ optdepends=(
 provides=("$pkgname")
 conflicts=("$pkgname-git")
 source=("$url/archive/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('be1d586523c293094afcefc1cedc281caba18ffe1499479e708e7380251715f6')
 
 build() {
   cd "$pkgname-$pkgver"
