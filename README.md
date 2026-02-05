@@ -192,6 +192,11 @@ environment.systemPackages = [
 sudo pacman -S wayland cairo pango json-c libxkbcommon glib2 librsvg
 ```
 
+**Install dependencies (Fedora):**
+```bash
+sudo dnf install wayland-devel cairo-devel pango-devel json-c-devel libxkbcommon-devel
+```
+
 ```bash
 # Build
 make
