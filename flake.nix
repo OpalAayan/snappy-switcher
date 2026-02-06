@@ -14,12 +14,12 @@
       {
         packages.default = pkgs.stdenv.mkDerivation {
           pname = "snappy-switcher";
-          version = "2.1.0";
+          version = "2.1.1";
 
           src = ./.;
 
           nativeBuildInputs = with pkgs; [
-            pkgconfig
+            pkg-config
             wayland-scanner
             makeWrapper
           ];

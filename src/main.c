@@ -551,17 +551,42 @@ static int run_daemon(void) {
   return 0;
 }
 
+static void print_help(const char *prog) {
+  printf("Snappy Switcher v2.1.1 - A fast, keyboard-driven window switcher for "
+         "Wayland\n\n");
+  printf("Usage: %s [OPTION] | <command>\n\n", prog);
+  printf("Options:\n");
+  printf("  --daemon       Start the switcher daemon\n");
+  printf("  --help, -h     Show this help message\n\n");
+  printf("Commands (requires daemon running):\n");
+  printf("  next           Select next window\n");
+  printf("  prev           Select previous window\n");
+  printf("  select         Activate the selected window\n");
+  printf("  toggle         Toggle the switcher visibility\n");
+  printf("  hide           Hide the switcher\n");
+  printf("  quit           Terminate the daemon\n\n");
+  printf("Example:\n");
+  printf("  %s --daemon &  # Start daemon in background\n", prog);
+  printf("  %s toggle      # Toggle the window switcher\n", prog);
+}
+
 int main(int argc, char **argv) {
   /* Ignore SIGPIPE early: client mode must handle broken pipe via errno,
    * not be terminated by signal if daemon crashes during send_command() */
   signal(SIGPIPE, SIG_IGN);
 
-  if (argc > 1 && strcmp(argv[1], "--daemon") == 0) {
-    return run_daemon();
-  } else if (argc > 1) {
+  if (argc > 1) {
+    if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+      print_help(argv[0]);
+      return 0;
+    }
+    if (strcmp(argv[1], "--daemon") == 0) {
+      return run_daemon();
+    }
     return run_client(argv[1]);
   }
 
   fprintf(stderr, "Usage: %s <command> | --daemon\n", argv[0]);
+  fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
   return 1;
 }

@@ -1,6 +1,6 @@
 # Maintainer: Opal Aayan <YougurtMyFace@proton.me>
 pkgname=snappy-switcher
-pkgver=2.1.0
+pkgver=2.1.1
 pkgrel=1
 pkgdesc="A fast, animated Alt+Tab window switcher for Hyprland with MRU sorting and context grouping"
 arch=('x86_64')

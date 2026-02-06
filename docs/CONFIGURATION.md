@@ -37,6 +37,7 @@ fallback = hicolor
 ## 📋 Configuration Sections
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#45475a', 'primaryTextColor': '#cdd6f4', 'primaryBorderColor': '#89b4fa', 'lineColor': '#6c7086', 'secondaryColor': '#313244', 'tertiaryColor': '#1e1e2e'}}}%%
 mindmap
   root((config.ini))
     general
@@ -84,6 +85,7 @@ flowchart LR
     style O3 fill:#303446,stroke:#f5c2e7,color:#f5c2e7,stroke-width:2px
     style O4 fill:#303446,stroke:#f5c2e7,color:#f5c2e7,stroke-width:2px
     style O5 fill:#303446,stroke:#f5c2e7,color:#f5c2e7,stroke-width:2px
+    
     style C1 fill:#303446,stroke:#cba6f7,color:#cba6f7,stroke-width:2px
     style C2 fill:#303446,stroke:#a6e3a1,color:#a6e3a1,stroke-width:2px
     style C3 fill:#303446,stroke:#89dceb,color:#89dceb,stroke-width:2px

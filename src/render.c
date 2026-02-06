@@ -220,7 +220,7 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
 
   /* Badge (Count) */
   if (win->group_count > 1) {
-    char count[8];
+    char count[12];
     snprintf(count, sizeof(count), "%d", win->group_count);
 
     double bx = x + w - 24;
