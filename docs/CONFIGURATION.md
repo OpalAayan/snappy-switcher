@@ -37,7 +37,20 @@ fallback = hicolor
 ## 📋 Configuration Sections
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#45475a', 'primaryTextColor': '#cdd6f4', 'primaryBorderColor': '#89b4fa', 'lineColor': '#6c7086', 'secondaryColor': '#313244', 'tertiaryColor': '#1e1e2e'}}}%%
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#4c566a',
+      'primaryTextColor': '#eceff4',
+      'primaryBorderColor': '#88c0d0',
+      'lineColor': '#81a1c1',
+      'secondaryColor': '#5e81ac',
+      'tertiaryColor': '#b48ead',
+      'fontFamily': 'arial'
+    }
+  }
+}%%
 mindmap
   root((config.ini))
     general

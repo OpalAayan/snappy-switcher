@@ -28,32 +28,32 @@
 
 | Feature | Description |
 |---------|-------------|
-| 🧠 **Context Grouping** | Automatically groups tiled windows by workspace + app class. Your 5 terminal windows become one clean card. |
-| 🎨 **12 Themed Skins** | Ships with Catppuccin, Dracula, Nord, Tokyo Night, and more. Full `.ini` customization. |
-| ⚡ **Native Performance** | Pure C with Wayland Layer Shell. No Electron. No lag. |
-| 🔄 **Crash Recovery** | Socket takeover protocol ensures seamless recovery if the daemon restarts. |
-| 🖼️ **Polished Visuals** | Animated selection, drop shadows, rounded corners, and app badges—all Cairo-rendered. |
-| 🖼️ **SVG & Flatpak Support** | Native SVG icon rendering and automatic Flatpak icon discovery. *(New in v2.1)* |
+|  **Context Grouping** | Automatically groups tiled windows by workspace + app class. Your 5 terminal windows become one clean card. |
+|  **12 Themed Skins** | Ships with Catppuccin, Dracula, Nord, Tokyo Night, and more. Full `.ini` customization. |
+|  **Native Performance** | Pure C with Wayland Layer Shell. No Electron. No lag. |
+|  **Crash Recovery** | Socket takeover protocol ensures seamless recovery if the daemon restarts. |
+|  **Polished Visuals** | Animated selection, drop shadows, rounded corners, and app badges—all Cairo-rendered. |
+|  **SVG & Flatpak Support** | Native SVG icon rendering and automatic Flatpak icon discovery. *(New in v2.1)* |
 
 ---
 
-## 🔄 How It Works
+##  How It Works
 
 ```mermaid
 flowchart LR
     subgraph Input[" "]
-        A["⌨️ Alt+Tab"]
+        A["⌨ Alt+Tab"]
     end
 
     subgraph Daemon["🔧 Snappy Daemon"]
-        B["📡 Fetch Clients<br/>(Hyprland IPC)"]
-        C["📊 Sort by MRU<br/>(Most Recently Used)"]
-        D["🧩 Context Aggregation<br/>(Group Tiled Windows)"]
+        B[" Fetch Clients<br/>(Hyprland IPC)"]
+        C[" Sort by MRU<br/>(Most Recently Used)"]
+        D[" Context Aggregation<br/>(Group Tiled Windows)"]
     end
 
     subgraph Output[" "]
-        E["🖼️ Cairo Render"]
-        F["👁️ Overlay Display"]
+        E[" Cairo Render"]
+        F[" Overlay Display"]
     end
 
     A --> B --> C --> D --> E --> F
@@ -70,7 +70,7 @@ flowchart LR
 
 ```mermaid
 graph TB
-    subgraph Before["📋 Raw Window List"]
+    subgraph Before[" Raw Window List"]
         W1["kitty<br/>workspace 1"]
         W2["kitty<br/>workspace 1"]
         W3["firefox<br/>workspace 2"]
@@ -79,6 +79,7 @@ graph TB
     end
 
     subgraph After["✨ After Context Aggregation"]
+
         G1["🔲 kitty × 3<br/>workspace 1"]
         G2["🔲 firefox<br/>workspace 2"]
         G3["🔳 firefox<br/>floating"]
@@ -91,7 +92,7 @@ graph TB
     style G3 fill:#45475a,stroke:#f38ba8,color:#cdd6f4
 ```
 
-> 💡 **Floating windows** are always shown individually—they're special!
+> 💡 **Floating windows** are always shown individually~they're special!
 
 ---
 
@@ -368,12 +369,12 @@ title_size = 10
 
 ```mermaid
 flowchart TB
-    subgraph Client["📱 Client Commands"]
+    subgraph Client["Client Commands"]
         CMD["snappy-switcher next/prev"]
     end
 
-    subgraph Daemon["🔧 Daemon Process"]
-        SOCK["🔌 Unix Socket<br/>/tmp/snappy-switcher.sock"]
+    subgraph Daemon["Daemon Process"]
+        SOCK["Unix Socket<br/>/tmp/snappy-switcher.sock"]
         
         subgraph Core["Core Logic"]
             HYP["hyprland.c<br/>IPC + Window Fetch"]
@@ -386,10 +387,10 @@ flowchart TB
             INP["input.c<br/>Keyboard Events"]
         end
         
-        WL["🌊 Wayland<br/>Layer Shell"]
+        WL["Wayland<br/>Layer Shell"]
     end
 
-    subgraph External["🌐 External"]
+    subgraph External["External"]
         HYP_IPC["Hyprland IPC"]
         DISP["Display Server"]
     end
