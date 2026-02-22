@@ -46,6 +46,9 @@ typedef struct {
   /* View Mode */
   bool follow_monitor;
   ViewMode mode;
+
+  /* Modifier key for activation */
+  char modifier_key[32];
 } Config;
 
 /* Load config from file, returns default if file not found */

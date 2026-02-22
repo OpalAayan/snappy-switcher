@@ -16,6 +16,9 @@ extern alt_release_callback_t on_escape;
 /* Reset Alt state (call when switcher shows to avoid stale detection) */
 void input_reset_alt_state(void);
 
+/* Set the modifier key by name (e.g., "Alt", "Super", "Control") */
+void input_set_modifier(const char *name);
+
 /* Get keyboard listener for Wayland seat */
 const struct wl_keyboard_listener *get_keyboard_listener(void);
 

@@ -17,6 +17,7 @@
 static void set_defaults(Config *cfg) {
   cfg->mode = MODE_CONTEXT;
   cfg->follow_monitor = false;
+  strncpy(cfg->modifier_key, "Alt", sizeof(cfg->modifier_key) - 1);
 
   /* Default Theme Colors */
   cfg->background = 0x1e1e2e;
@@ -86,7 +87,8 @@ static void apply_value(Config *cfg, const char *section, const char *key,
     } else if (strcasecmp(key, "follow_monitor") == 0) {
       cfg->follow_monitor =
           (strcasecmp(val, "true") == 0 || strcmp(val, "1") == 0);
-    }
+    } else if (strcasecmp(key, "modifier_key") == 0)
+      strncpy(cfg->modifier_key, val, sizeof(cfg->modifier_key) - 1);
   }
   /* Colors (from theme or manual override) */
   else if (strcasecmp(section, "colors") == 0 ||
@@ -285,6 +287,8 @@ static void create_default_config(const char *path) {
   fprintf(f, "[general]\n");
   fprintf(f, "# mode = context | overview\n");
   fprintf(f, "mode = context\n\n");
+  fprintf(f, "# modifier_key = Alt | Super | Control\n");
+  fprintf(f, "modifier_key = Alt\n");
   fprintf(f, "[theme]\n");
   fprintf(f, "# Available: snappy-slate, tokyo-night, catppuccin-mocha,\n");
   fprintf(f, "#            dracula, nord, gruvbox-dark, rose-pine, etc.\n");

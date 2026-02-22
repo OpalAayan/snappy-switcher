@@ -18,6 +18,7 @@ static struct xkb_context *xkb_ctx = NULL;
 static struct xkb_keymap *xkb_keymap = NULL;
 static struct xkb_state *xkb_st = NULL;
 
+static const char *modifier_name = XKB_MOD_NAME_ALT; // Default to "Alt"
 static bool alt_pressed = false;
 static bool ignore_first_release = true;
 
@@ -153,7 +154,7 @@ static void keyboard_modifiers(void *data, struct wl_keyboard *keyboard,
     return;
   xkb_state_update_mask(xkb_st, depressed, latched, locked, 0, 0, group);
 
-  bool alt_now = xkb_state_mod_name_is_active(xkb_st, XKB_MOD_NAME_ALT,
+  bool alt_now = xkb_state_mod_name_is_active(xkb_st, modifier_name,
                                               XKB_STATE_MODS_EFFECTIVE);
 
   if (ignore_first_release) {
@@ -188,6 +189,14 @@ static const struct wl_keyboard_listener keyboard_listener = {
 
 const struct wl_keyboard_listener *get_keyboard_listener(void) {
   return &keyboard_listener;
+}
+
+// Allow setting the modifier key by name (e.g., "Alt", "Super", "Control")
+void input_set_modifier(const char *name) {
+  if (name && *name)
+    modifier_name = name;
+  else
+    modifier_name = XKB_MOD_NAME_ALT;
 }
 
 void input_cleanup(void) {

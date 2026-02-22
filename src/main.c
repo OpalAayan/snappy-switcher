@@ -398,6 +398,7 @@ static int run_daemon(void) {
   config = load_config();
   if (!config)
     config = get_default_config();
+  input_set_modifier(config->modifier_key);
   render_set_config(config);
   icons_init(config->icon_theme, config->icon_fallback);
   app_state_init(&app_state);

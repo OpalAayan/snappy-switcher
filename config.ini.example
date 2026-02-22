@@ -24,6 +24,9 @@ mode = context
 # The panel position whether to follow the focus of your monitor
 follow_monitor = false
 
+# The modifier key to activate the selected window options: Alt, Super or Control
+modifier_key = Alt
+
 # ┌───────────────────────────────────────────────────────────────────────────┐
 # │                              THEME SETTINGS                               │
 # └───────────────────────────────────────────────────────────────────────────┘
