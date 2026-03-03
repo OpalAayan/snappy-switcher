@@ -269,9 +269,13 @@ void calculate_dimensions(AppState *state, uint32_t *width, uint32_t *height) {
     *height = 150;
 }
 
-void render_ui(AppState *state, uint32_t width, uint32_t height) {
-  int stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, width);
-  int size = stride * height;
+void render_ui(AppState *state, uint32_t logical_width, uint32_t logical_height,
+               int scale) {
+  uint32_t phys_width = logical_width * scale;
+  uint32_t phys_height = logical_height * scale;
+
+  int stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, phys_width);
+  int size = stride * phys_height;
   int fd = create_shm_file(size);
   if (fd < 0)
     return;
@@ -286,8 +290,9 @@ void render_ui(AppState *state, uint32_t width, uint32_t height) {
   memset(data, 0, size);
 
   cairo_surface_t *surf = cairo_image_surface_create_for_data(
-      data, CAIRO_FORMAT_ARGB32, width, height, stride);
+      data, CAIRO_FORMAT_ARGB32, phys_width, phys_height, stride);
   cairo_t *cr = cairo_create(surf);
+  cairo_scale(cr, scale, scale);
   cairo_set_antialias(cr, CAIRO_ANTIALIAS_BEST);
 
   /* CRITICAL FIX 2: Source Clear */
@@ -308,7 +313,7 @@ void render_ui(AppState *state, uint32_t width, uint32_t height) {
 
   cairo_set_source_rgba(cr, r, g, b, 0.95);
   int rad = cfg ? cfg->card_radius : 12;
-  draw_rounded_rect(cr, 0, 0, width, height, rad + 4);
+  draw_rounded_rect(cr, 0, 0, logical_width, logical_height, rad + 4);
   cairo_fill(cr);
 
   /* Border */
@@ -316,7 +321,8 @@ void render_ui(AppState *state, uint32_t width, uint32_t height) {
     color_to_rgb(cfg->border_color, &r, &g, &b);
   cairo_set_source_rgba(cr, r, g, b, 0.3);
   cairo_set_line_width(cr, 1);
-  draw_rounded_rect(cr, 0.5, 0.5, width - 1, height - 1, rad + 4);
+  draw_rounded_rect(cr, 0.5, 0.5, logical_width - 1, logical_height - 1,
+                    rad + 4);
   cairo_stroke(cr);
 
   /* Content */
@@ -329,7 +335,7 @@ void render_ui(AppState *state, uint32_t width, uint32_t height) {
     if (cfg)
       color_to_rgb(cfg->text_color, &r, &g, &b);
     cairo_set_source_rgba(cr, r, g, b, 0.5);
-    cairo_move_to(cr, (width - mw) / 2.0, (height - mh) / 2.0);
+    cairo_move_to(cr, (logical_width - mw) / 2.0, (logical_height - mh) / 2.0);
     pango_cairo_show_layout(cr, msg);
     g_object_unref(msg);
   } else {
@@ -345,8 +351,8 @@ void render_ui(AppState *state, uint32_t width, uint32_t height) {
     int grid_w = (cols * cw) + ((cols - 1) * gap);
     int grid_h = (rows * ch) + ((rows - 1) * gap);
 
-    double start_x = (width - grid_w) / 2.0;
-    double start_y = (height - grid_h) / 2.0;
+    double start_x = (logical_width - grid_w) / 2.0;
+    double start_y = (logical_height - grid_h) / 2.0;
     if (start_x < pad)
       start_x = pad;
     if (start_y < pad)
@@ -364,11 +370,10 @@ void render_ui(AppState *state, uint32_t width, uint32_t height) {
   /* Wayland Commit */
   struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
   struct wl_buffer *buffer = wl_shm_pool_create_buffer(
-      pool, 0, width, height, stride, WL_SHM_FORMAT_ARGB8888);
+      pool, 0, phys_width, phys_height, stride, WL_SHM_FORMAT_ARGB8888);
 
   wl_surface_attach(surface, buffer, 0, 0);
-  wl_surface_damage_buffer(surface, 0, 0, width,
-                           height); /* Use damage_buffer for best safety */
+  wl_surface_damage_buffer(surface, 0, 0, phys_width, phys_height);
   wl_surface_commit(surface);
 
   cairo_destroy(cr);

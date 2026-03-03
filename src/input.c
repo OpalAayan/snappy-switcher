@@ -14,6 +14,8 @@
 
 #define LOG(fmt, ...) fprintf(stderr, "[Input] " fmt "\n", ##__VA_ARGS__)
 
+extern int output_scale;
+
 static struct xkb_context *xkb_ctx = NULL;
 static struct xkb_keymap *xkb_keymap = NULL;
 static struct xkb_state *xkb_st = NULL;
@@ -116,7 +118,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
         if (app_state->selected_index >= app_state->count)
           app_state->selected_index = 0;
       }
-      render_ui(app_state, app_state->width, app_state->height);
+      render_ui(app_state, app_state->width, app_state->height, output_scale);
     }
     break;
 

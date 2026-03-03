@@ -42,7 +42,10 @@ struct wl_shm *shm = NULL;
 struct zwlr_layer_shell_v1 *layer_shell = NULL;
 struct wl_surface *surface = NULL;
 struct zwlr_layer_surface_v1 *layer_surface = NULL;
+struct wl_output *output = NULL;
 struct wl_seat *seat = NULL;
+
+int output_scale = 1;
 struct wl_keyboard *keyboard = NULL;
 
 static bool running = true;
@@ -83,7 +86,7 @@ static void layer_surface_configure(void *data,
   zwlr_layer_surface_v1_ack_configure(layer_surf, serial);
 
   if (visible) {
-    render_ui(&app_state, app_state.width, app_state.height);
+    render_ui(&app_state, app_state.width, app_state.height, output_scale);
   }
 }
 
@@ -122,6 +125,55 @@ static const struct wl_seat_listener seat_listener = {
     .name = seat_name,
 };
 
+/* --- wl_output listener (HiDPI scale tracking) --- */
+static void output_geometry(void *data, struct wl_output *wl_output, int32_t x,
+                            int32_t y, int32_t pw, int32_t ph, int32_t subpx,
+                            const char *make, const char *model,
+                            int32_t transform) {
+  (void)data;
+  (void)wl_output;
+  (void)x;
+  (void)y;
+  (void)pw;
+  (void)ph;
+  (void)subpx;
+  (void)make;
+  (void)model;
+  (void)transform;
+}
+
+static void output_mode(void *data, struct wl_output *wl_output, uint32_t flags,
+                        int32_t w, int32_t h, int32_t refresh) {
+  (void)data;
+  (void)wl_output;
+  (void)flags;
+  (void)w;
+  (void)h;
+  (void)refresh;
+}
+
+static void output_done(void *data, struct wl_output *wl_output) {
+  (void)data;
+  (void)wl_output;
+}
+
+static void output_scale_event(void *data, struct wl_output *wl_output,
+                               int32_t factor) {
+  (void)data;
+  (void)wl_output;
+  if (factor >= 1) {
+    output_scale = factor;
+    LOG("Output scale: %d", output_scale);
+  }
+}
+
+static const struct wl_output_listener output_listener = {
+    .geometry = output_geometry,
+    .mode = output_mode,
+    .done = output_done,
+    .scale = output_scale_event,
+};
+
 static void registry_global(void *data, struct wl_registry *registry,
                             uint32_t name, const char *interface,
                             uint32_t version) {
@@ -138,6 +190,9 @@ static void registry_global(void *data, struct wl_registry *registry,
   else if (strcmp(interface, wl_seat_interface.name) == 0) {
     seat = wl_registry_bind(registry, name, &wl_seat_interface, 4);
     wl_seat_add_listener(seat, &seat_listener, state);
+  } else if (strcmp(interface, wl_output_interface.name) == 0) {
+    output = wl_registry_bind(registry, name, &wl_output_interface, 3);
+    wl_output_add_listener(output, &output_listener, NULL);
   }
 }
 
@@ -194,6 +249,7 @@ static void create_panel(void) {
   zwlr_layer_surface_v1_add_listener(layer_surface, &layer_surface_listener,
                                      NULL);
 
+  wl_surface_set_buffer_scale(surface, output_scale);
   wl_surface_commit(surface);
   wl_display_roundtrip(display);
 
@@ -252,6 +308,7 @@ static void show_switcher(void) {
   zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface, 1);
 
   visible = true;
+  wl_surface_set_buffer_scale(surface, output_scale);
   wl_surface_commit(surface);
   wl_display_flush(display);
 }
@@ -297,7 +354,7 @@ static void handle_command(const char *cmd) {
     if (dir != 0 && app_state.count > 0) {
       app_state.selected_index =
           (app_state.selected_index + dir + app_state.count) % app_state.count;
-      render_ui(&app_state, app_state.width, app_state.height);
+      render_ui(&app_state, app_state.width, app_state.height, output_scale);
     } else if (strcmp(cmd, CMD_SELECT) == 0) {
       select_and_hide();
     }
@@ -543,6 +600,8 @@ static int run_daemon(void) {
     wl_surface_destroy(surface);
   if (keyboard)
     wl_keyboard_destroy(keyboard);
+  if (output)
+    wl_output_destroy(output);
   if (seat)
     wl_seat_destroy(seat);
   if (display)

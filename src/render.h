@@ -19,7 +19,7 @@ void render_set_config(Config *config);
 void calculate_dimensions(AppState *state, uint32_t *width, uint32_t *height);
 
 /* Render the window switcher UI */
-void render_ui(AppState *state, uint32_t width, uint32_t height);
+void render_ui(AppState *state, uint32_t width, uint32_t height, int scale);
 
 /* Create a shared memory file for Wayland buffers */
 int create_shm_file(off_t size);
