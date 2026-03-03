@@ -8,6 +8,12 @@ RSVG_CFLAGS = $(shell pkg-config --cflags librsvg-2.0 2>/dev/null)
 RSVG_LIBS = $(shell pkg-config --libs librsvg-2.0 2>/dev/null)
 ifneq ($(RSVG_LIBS),)
   RSVG_FLAG = -DHAVE_RSVG
+else
+  $(warning ════════════════════════════════════════════════════════════════)
+  $(warning  SVG icon support DISABLED — librsvg-2.0 not found.)
+  $(warning  Install librsvg2-dev [Debian/Ubuntu] or librsvg2-devel [Fedora])
+  $(warning  to enable SVG icon rendering. PNG fallback will be used.)
+  $(warning ════════════════════════════════════════════════════════════════)
 endif
 
 # Added -O2 for release builds, kept -g for symbols

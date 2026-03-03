@@ -407,6 +407,53 @@ static cairo_surface_t *load_png_icon(const char *path, int size) {
   return surface;
 }
 
+/* Fallback: scan standard XDG paths for a PNG equivalent of an icon.
+ * Used when an SVG path was resolved but HAVE_RSVG is not available,
+ * or when the SVG render itself failed. */
+static cairo_surface_t *find_png_fallback(const char *icon_name, int size) {
+  char try_path[MAX_PATH];
+  /* Include user's active themes before falling back to hicolor/Adwaita */
+  const char *themes[] = {current_theme, fallback_theme_name, "hicolor", "Adwaita"};
+  const char *raster_sizes[] = {"256x256", "128x128", "64x64",
+                                "48x48",   "32x32",   "24x24"};
+  const char *categories[] = {"apps", "applications"};
+
+  for (size_t t = 0; t < sizeof(themes) / sizeof(themes[0]); t++) {
+    for (size_t rs = 0; rs < sizeof(raster_sizes) / sizeof(raster_sizes[0]);
+         rs++) {
+      for (int d = 0; icon_dirs[d]; d++) {
+        if (!icon_dirs[d][0])
+          continue;
+        for (size_t cat = 0; cat < sizeof(categories) / sizeof(categories[0]);
+             cat++) {
+          snprintf(try_path, sizeof(try_path), "%s/%s/%s/%s/%s.png",
+                   icon_dirs[d], themes[t], raster_sizes[rs], categories[cat],
+                   icon_name);
+          if (file_exists(try_path)) {
+            cairo_surface_t *s = load_png_icon(try_path, size);
+            if (s) {
+              LOG("PNG fallback loaded: %s", try_path);
+              return s;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /* Last resort: /usr/share/pixmaps */
+  snprintf(try_path, sizeof(try_path), "/usr/share/pixmaps/%s.png", icon_name);
+  if (file_exists(try_path)) {
+    cairo_surface_t *s = load_png_icon(try_path, size);
+    if (s) {
+      LOG("PNG fallback loaded (pixmaps): %s", try_path);
+      return s;
+    }
+  }
+
+  return NULL;
+}
+
 #ifdef HAVE_RSVG
 /* Load SVG icon via librsvg with robust viewport handling */
 static cairo_surface_t *load_svg_icon(const char *path, int size) {
@@ -580,6 +627,22 @@ cairo_surface_t *load_app_icon(const char *class_name, int size) {
         surface = load_svg_icon(icon_name, size);
       }
 #endif
+#ifndef HAVE_RSVG
+      else if (strcasecmp(ext, ".svg") == 0) {
+        /* SVG found but no librsvg — extract base name and try PNG */
+        const char *slash = strrchr(icon_name, '/');
+        const char *base = slash ? slash + 1 : icon_name;
+        char base_name[256];
+        strncpy(base_name, base, sizeof(base_name) - 1);
+        base_name[sizeof(base_name) - 1] = '\0';
+        char *dot = strrchr(base_name, '.');
+        if (dot)
+          *dot = '\0';
+        LOG("SVG found but RSVG disabled, trying PNG fallback for: %s",
+            base_name);
+        surface = find_png_fallback(base_name, size);
+      }
+#endif
     }
     if (surface) {
       /* Cache result */
@@ -621,32 +684,18 @@ cairo_surface_t *load_app_icon(const char *class_name, int size) {
 #ifdef HAVE_RSVG
       else if (strcasecmp(ext, ".svg") == 0) {
         surface = load_svg_icon(icon_path, size);
-        /* If SVG fails, try to find a PNG fallback */
+        /* If SVG render itself failed, try PNG fallback */
         if (!surface) {
           LOG("SVG load failed, trying PNG fallback for: %s", icon_name);
-          /* Force PNG by checking raster sizes first */
-          const char *raster_sizes[] = {"256x256", "128x128", "64x64", "48x48"};
-          for (size_t rs = 0;
-               rs < sizeof(raster_sizes) / sizeof(raster_sizes[0]) && !surface;
-               rs++) {
-            char png_try[MAX_PATH];
-            for (int d = 0; icon_dirs[d] && !surface; d++) {
-              const char *cats[] = {"apps", "applications"};
-              for (size_t cat = 0;
-                   cat < sizeof(cats) / sizeof(cats[0]) && !surface; cat++) {
-                snprintf(png_try, sizeof(png_try), "%s/%s/%s/%s/%s.png",
-                         icon_dirs[d], "hicolor", raster_sizes[rs], cats[cat],
-                         icon_name);
-                if (file_exists(png_try)) {
-                  surface = load_png_icon(png_try, size);
-                  if (surface) {
-                    LOG("PNG fallback loaded: %s", png_try);
-                  }
-                }
-              }
-            }
-          }
+          surface = find_png_fallback(icon_name, size);
         }
+      }
+#endif
+#ifndef HAVE_RSVG
+      else if (strcasecmp(ext, ".svg") == 0) {
+        LOG("SVG found but RSVG disabled, searching PNG fallback for: %s",
+            icon_name);
+        surface = find_png_fallback(icon_name, size);
       }
 #endif
     }

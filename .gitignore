@@ -4,3 +4,4 @@
 *-protocol.h
 *-protocol.c
 snappy-switcher
+.vscode/
