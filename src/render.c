@@ -207,7 +207,15 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
   pango_layout_set_width(title, (w - 20) * PANGO_SCALE);
   pango_layout_set_ellipsize(title, PANGO_ELLIPSIZE_END);
   pango_layout_set_alignment(title, PANGO_ALIGN_CENTER);
-  pango_layout_set_text(title, win->title, -1);
+  char full_title[512];
+  if (win->workspace_id > 0) {
+    snprintf(full_title, sizeof(full_title), "[%d] %s", win->workspace_id, win->title);
+  }
+  else {
+    snprintf(full_title, sizeof(full_title), "%s", win->title);
+  }
+
+  pango_layout_set_text(title, full_title, -1);
 
   cairo_set_source_rgb(cr, txt_r, txt_g, txt_b);
   cairo_move_to(cr, x + 10, y + 10);
