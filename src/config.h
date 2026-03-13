@@ -46,10 +46,16 @@ typedef struct {
   /* View Mode */
   bool follow_monitor;
   ViewMode mode;
+
+  /* Dismiss modifier: which modifier release hides the switcher (e.g. alt, super) */
+  char dismiss_modifier[64];
 } Config;
 
-/* Load config from file, returns default if file not found */
+/* Load config from default path (~/.config/snappy-switcher/config.ini) */
 Config *load_config(void);
+
+/* Load config from given path; NULL = use default. Returns default if missing. */
+Config *load_config_from(const char *path);
 
 /* Free config memory */
 void free_config(Config *config);

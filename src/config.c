@@ -17,6 +17,7 @@
 static void set_defaults(Config *cfg) {
   cfg->mode = MODE_CONTEXT;
   cfg->follow_monitor = false;
+  strncpy(cfg->dismiss_modifier, "alt", sizeof(cfg->dismiss_modifier) - 1);
 
   /* Default Theme Colors */
   cfg->background = 0x1e1e2e;
@@ -86,6 +87,9 @@ static void apply_value(Config *cfg, const char *section, const char *key,
     } else if (strcasecmp(key, "follow_monitor") == 0) {
       cfg->follow_monitor =
           (strcasecmp(val, "true") == 0 || strcmp(val, "1") == 0);
+    } else if (strcasecmp(key, "dismiss_modifier") == 0) {
+      strncpy(cfg->dismiss_modifier, val, sizeof(cfg->dismiss_modifier) - 1);
+      cfg->dismiss_modifier[sizeof(cfg->dismiss_modifier) - 1] = '\0';
     }
   }
   /* Colors (from theme or manual override) */
@@ -300,7 +304,7 @@ static void create_default_config(const char *path) {
 }
 
 /* --- Main Config Loader --- */
-Config *load_config(void) {
+Config *load_config_from(const char *path) {
   Config *cfg = malloc(sizeof(Config));
   if (!cfg)
     return NULL;
@@ -308,37 +312,48 @@ Config *load_config(void) {
 
   set_defaults(cfg);
 
-  const char *home = getenv("HOME");
-  if (!home)
-    return cfg;
-
   char config_path[1024];
-  snprintf(config_path, sizeof(config_path),
-           "%s/.config/snappy-switcher/config.ini", home);
+  bool use_default_search = (path == NULL || path[0] == '\0');
+
+  if (use_default_search) {
+    const char *home = getenv("HOME");
+    if (!home)
+      return cfg;
+    snprintf(config_path, sizeof(config_path),
+             "%s/.config/snappy-switcher/config.ini", home);
+    path = config_path;
+  } else {
+    strncpy(config_path, path, sizeof(config_path) - 1);
+    config_path[sizeof(config_path) - 1] = '\0';
+  }
 
   /* First Pass: Read config and extract theme name */
   char theme_name[256] = "";
-  if (parse_ini_file(config_path, cfg, theme_name, sizeof(theme_name)) < 0) {
-    /* Try system config */
-    if (parse_ini_file("/etc/xdg/snappy-switcher/config.ini", cfg, theme_name,
-                       sizeof(theme_name)) < 0) {
-      /* Self-Healing: Create default config file */
-      create_default_config(config_path);
+  if (parse_ini_file(path, cfg, theme_name, sizeof(theme_name)) < 0) {
+    if (use_default_search) {
+      /* Try system config */
+      if (parse_ini_file("/etc/xdg/snappy-switcher/config.ini", cfg,
+                         theme_name, sizeof(theme_name)) < 0) {
+        create_default_config(config_path);
+        strncpy(theme_name, "snappy-slate.ini", sizeof(theme_name) - 1);
+        LOG("Using defaults with snappy-slate theme");
+      }
+    } else {
+      LOG("Config file not found: %s (using defaults)", path);
       strncpy(theme_name, "snappy-slate.ini", sizeof(theme_name) - 1);
-      LOG("Using defaults with snappy-slate theme");
     }
   }
 
-  /* Load Theme File (if specified) */
-  if (theme_name[0] != '\0') {
+  if (theme_name[0] != '\0')
     load_theme(theme_name, cfg);
-  }
 
-  /* Second Pass: Re-parse config to apply overrides */
-  /* This allows users to override specific theme colors in config.ini */
-  parse_ini_file(config_path, cfg, NULL, 0);
+  parse_ini_file(path, cfg, NULL, 0);
 
   return cfg;
+}
+
+Config *load_config(void) {
+  return load_config_from(NULL);
 }
 
 Config *get_default_config(void) {

@@ -24,6 +24,10 @@ mode = context
 # The panel position whether to follow the focus of your monitor
 follow_monitor = false
 
+# Modifier that dismisses the switcher when released.
+# Must match your Hyprland keybinding. Examples: alt, super, alt,super
+dismiss_modifier = alt
+
 # ┌───────────────────────────────────────────────────────────────────────────┐
 # │                              THEME SETTINGS                               │
 # └───────────────────────────────────────────────────────────────────────────┘

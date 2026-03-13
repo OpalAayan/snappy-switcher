@@ -362,7 +362,7 @@ static void handle_command(const char *cmd) {
 }
 
 /* Client Mode (CLI) */
-static int run_client(const char *cmd) {
+static int run_client(const char *prog, const char *cmd) {
   const char *socket_cmd = NULL;
   if (strcmp(cmd, "next") == 0)
     socket_cmd = CMD_NEXT;
@@ -376,8 +376,10 @@ static int run_client(const char *cmd) {
     socket_cmd = CMD_HIDE;
   else if (strcmp(cmd, "quit") == 0)
     socket_cmd = CMD_QUIT;
-  else
+  else {
+    fprintf(stderr, "%s: unknown command '%s'\n", prog, cmd);
     return 1;
+  }
 
   if (!is_daemon_running()) {
     fprintf(stderr,
@@ -425,8 +427,8 @@ static int takeover_existing_daemon(void) {
   return 0;
 }
 
-/* Daemon Mode */
-static int run_daemon(void) {
+/* Daemon Mode. config_path: NULL = use default, else load from this file. */
+static int run_daemon(const char *config_path) {
   /* Ruthless Takeover: Kill any existing zombie instead of exiting politely */
   if (takeover_existing_daemon() != 0) {
     LOG("Failed to take over from existing daemon");
@@ -452,11 +454,12 @@ static int run_daemon(void) {
   sigaction(SIGPIPE, &sa_ignore, NULL); /* Broken pipe - ignore */
 
   /* 2. Config & Resources */
-  config = load_config();
+  config = load_config_from(config_path);
   if (!config)
     config = get_default_config();
   render_set_config(config);
   icons_init(config->icon_theme, config->icon_fallback);
+  input_set_dismiss_modifier(config->dismiss_modifier);
   app_state_init(&app_state);
 
   backend = backend_init();
@@ -616,6 +619,8 @@ static void print_help(const char *prog) {
   printf("Usage: %s [OPTION] | <command>\n\n", prog);
   printf("Options:\n");
   printf("  --daemon       Start the switcher daemon\n");
+  printf("  --config, -c PATH  Use config file (daemon only, default: "
+         "~/.config/snappy-switcher/config.ini)\n");
   printf("  --help, -h     Show this help message\n\n");
   printf("Commands (requires daemon running):\n");
   printf("  next           Select next window\n");
@@ -626,6 +631,7 @@ static void print_help(const char *prog) {
   printf("  quit           Terminate the daemon\n\n");
   printf("Example:\n");
   printf("  %s --daemon &  # Start daemon in background\n", prog);
+  printf("  %s -c /path/to/config.ini --daemon  # Use custom config\n", prog);
   printf("  %s toggle      # Toggle the window switcher\n", prog);
 }
 
@@ -634,15 +640,25 @@ int main(int argc, char **argv) {
    * not be terminated by signal if daemon crashes during send_command() */
   signal(SIGPIPE, SIG_IGN);
 
-  if (argc > 1) {
-    if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+  const char *config_path = NULL;
+
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
       print_help(argv[0]);
       return 0;
     }
-    if (strcmp(argv[1], "--daemon") == 0) {
-      return run_daemon();
+    if (strcmp(argv[i], "--config") == 0 || strcmp(argv[i], "-c") == 0) {
+      if (i + 1 >= argc) {
+        fprintf(stderr, "%s: --config requires an argument\n", argv[0]);
+        return 1;
+      }
+      config_path = argv[++i];
+      continue;
     }
-    return run_client(argv[1]);
+    if (strcmp(argv[i], "--daemon") == 0) {
+      return run_daemon(config_path);
+    }
+    return run_client(argv[0], argv[i]);
   }
 
   fprintf(stderr, "Usage: %s <command> | --daemon\n", argv[0]);

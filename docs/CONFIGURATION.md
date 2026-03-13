@@ -106,6 +106,7 @@ flowchart LR
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
 | `mode` | `overview`, `context` | `context` | Window grouping mode |
+| `dismiss_modifier` | `alt`, `super`, `shift`, `control`, or comma-separated | `alt` | Modifier(s) that dismiss the switcher when released. Must match your Hyprland keybinding. |
 
 ### Mode Comparison
 
@@ -422,15 +423,19 @@ icon_letter_size = 24
 
 ## ⌨️ Hyprland Keybindings
 
-Add these to `~/.config/hypr/hyprland.conf`:
+Add these to `~/.config/hypr/hyprland.conf`. Use any modifier combo; set `dismiss_modifier` in config to match so the switcher hides when you release the key.
 
 ```bash
 # Start daemon on login
 exec-once = snappy-switcher --daemon
 
-# Alt-Tab to cycle windows
+# Alt-Tab (default) — set dismiss_modifier = alt
 bind = ALT, Tab, exec, snappy-switcher next
 bind = ALT SHIFT, Tab, exec, snappy-switcher prev
+
+# Or Super-Tab — set dismiss_modifier = super
+# bind = SUPER, Tab, exec, snappy-switcher next
+# bind = SUPER SHIFT, Tab, exec, snappy-switcher prev
 ```
 
 ### Optional Keybindings

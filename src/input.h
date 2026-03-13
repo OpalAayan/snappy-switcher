@@ -13,7 +13,10 @@ extern alt_release_callback_t on_alt_release;
 /* Callback for Escape key - hide without switching (set by main.c) */
 extern alt_release_callback_t on_escape;
 
-/* Reset Alt state (call when switcher shows to avoid stale detection) */
+/* Configure which modifier release dismisses the switcher (e.g. "alt", "super") */
+void input_set_dismiss_modifier(const char *mod);
+
+/* Reset modifier state (call when switcher shows to avoid stale detection) */
 void input_reset_alt_state(void);
 
 /* Get keyboard listener for Wayland seat */

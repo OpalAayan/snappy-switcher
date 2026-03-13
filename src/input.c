@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <strings.h>
 #include <xkbcommon/xkbcommon.h>
 
 #define LOG(fmt, ...) fprintf(stderr, "[Input] " fmt "\n", ##__VA_ARGS__)
@@ -20,17 +21,78 @@ static struct xkb_context *xkb_ctx = NULL;
 static struct xkb_keymap *xkb_keymap = NULL;
 static struct xkb_state *xkb_st = NULL;
 
-static bool alt_pressed = false;
+#define MAX_DISMISS_MODS 8
+static const char *dismiss_mod_names[MAX_DISMISS_MODS] = {"Mod1"};
+static int dismiss_mod_count = 1;
+static bool mod_was_held = false;
 static bool ignore_first_release = true;
 
 alt_release_callback_t on_alt_release = NULL;
 alt_release_callback_t on_escape = NULL;
 static AppState *app_state = NULL;
 
+/* Map user-friendly names to XKB modifier names */
+static const char *mod_name_to_xkb(const char *name) {
+  if (!name)
+    return NULL;
+  if (strcasecmp(name, "alt") == 0 || strcasecmp(name, "mod1") == 0)
+    return "Mod1";
+  if (strcasecmp(name, "super") == 0 || strcasecmp(name, "mod4") == 0 ||
+      strcasecmp(name, "logo") == 0)
+    return "Mod4";
+  if (strcasecmp(name, "shift") == 0)
+    return "Shift";
+  if (strcasecmp(name, "control") == 0 || strcasecmp(name, "ctrl") == 0)
+    return "Control";
+  /* Pass through raw XKB names */
+  return name;
+}
+
+void input_set_dismiss_modifier(const char *mod) {
+  static char storage[MAX_DISMISS_MODS][16];
+  dismiss_mod_count = 0;
+  if (!mod || !*mod) {
+    strncpy(storage[0], "Mod1", 15);
+    storage[0][15] = '\0';
+    dismiss_mod_names[0] = storage[0];
+    dismiss_mod_count = 1;
+    return;
+  }
+  char buf[256];
+  strncpy(buf, mod, sizeof(buf) - 1);
+  buf[sizeof(buf) - 1] = '\0';
+  char *p = buf;
+  while (p && dismiss_mod_count < MAX_DISMISS_MODS) {
+    while (*p == ' ' || *p == ',')
+      p++;
+    if (!*p)
+      break;
+    char *end = p;
+    while (*end && *end != ',' && *end != ' ')
+      end++;
+    if (*end)
+      *end++ = '\0';
+    const char *xkb = mod_name_to_xkb(p);
+    if (xkb) {
+      snprintf(storage[dismiss_mod_count], sizeof(storage[0]), "%.15s", xkb);
+      dismiss_mod_names[dismiss_mod_count] = storage[dismiss_mod_count];
+      dismiss_mod_count++;
+    }
+    p = end;
+  }
+  if (dismiss_mod_count == 0) {
+    strncpy(storage[0], "Mod1", 15);
+    storage[0][15] = '\0';
+    dismiss_mod_names[0] = storage[0];
+    dismiss_mod_count = 1;
+  }
+  LOG("Dismiss modifier: %s (%d)", mod, dismiss_mod_count);
+}
+
 void input_reset_alt_state(void) {
-  alt_pressed = true;
+  mod_was_held = true;
   ignore_first_release = true;
-  LOG("Alt state reset");
+  LOG("Modifier state reset");
 }
 
 static void keyboard_keymap(void *data, struct wl_keyboard *keyboard,
@@ -143,6 +205,15 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
   }
 }
 
+static bool any_dismiss_mod_held(void) {
+  for (int i = 0; i < dismiss_mod_count; i++) {
+    if (xkb_state_mod_name_is_active(xkb_st, dismiss_mod_names[i],
+                                     XKB_STATE_MODS_EFFECTIVE))
+      return true;
+  }
+  return false;
+}
+
 static void keyboard_modifiers(void *data, struct wl_keyboard *keyboard,
                                uint32_t serial, uint32_t depressed,
                                uint32_t latched, uint32_t locked,
@@ -155,20 +226,19 @@ static void keyboard_modifiers(void *data, struct wl_keyboard *keyboard,
     return;
   xkb_state_update_mask(xkb_st, depressed, latched, locked, 0, 0, group);
 
-  bool alt_now = xkb_state_mod_name_is_active(xkb_st, XKB_MOD_NAME_ALT,
-                                              XKB_STATE_MODS_EFFECTIVE);
+  bool any_held_now = any_dismiss_mod_held();
 
   if (ignore_first_release) {
     ignore_first_release = false;
-    alt_pressed = alt_now;
+    mod_was_held = any_held_now;
     return;
   }
 
-  if (alt_pressed && !alt_now) {
+  if (mod_was_held && !any_held_now) {
     if (on_alt_release)
       on_alt_release();
   }
-  alt_pressed = alt_now;
+  mod_was_held = any_held_now;
 }
 
 static void keyboard_repeat_info(void *data, struct wl_keyboard *keyboard,
