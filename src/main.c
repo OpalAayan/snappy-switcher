@@ -303,6 +303,8 @@ static void show_switcher(void) {
   app_state.selected_index = (app_state.count > 1) ? 1 : 0;
 
   calculate_dimensions(&app_state, &app_state.width, &app_state.height);
+  int max_cols = config ? config->max_cols : 5;
+  app_state.cols = (app_state.count < max_cols) ? app_state.count : max_cols;
   zwlr_layer_surface_v1_set_size(layer_surface, app_state.width,
                                  app_state.height);
   zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface, 1);

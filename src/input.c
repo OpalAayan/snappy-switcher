@@ -122,6 +122,42 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
     }
     break;
 
+  case XKB_KEY_Left:
+    if (app_state->count > 0) {
+      app_state->selected_index--;
+      if (app_state->selected_index < 0)
+        app_state->selected_index = app_state->count - 1;
+      render_ui(app_state, app_state->width, app_state->height, output_scale);
+    }
+    break;
+
+  case XKB_KEY_Right:
+    if (app_state->count > 0) {
+      app_state->selected_index++;
+      if (app_state->selected_index >= app_state->count)
+        app_state->selected_index = 0;
+      render_ui(app_state, app_state->width, app_state->height, output_scale);
+    }
+    break;
+
+  case XKB_KEY_Up:
+    if (app_state->count > 0 && app_state->cols > 0) {
+      int next = app_state->selected_index - app_state->cols;
+      if (next >= 0)
+        app_state->selected_index = next;
+      render_ui(app_state, app_state->width, app_state->height, output_scale);
+    }
+    break;
+
+  case XKB_KEY_Down:
+    if (app_state->count > 0 && app_state->cols > 0) {
+      int next = app_state->selected_index + app_state->cols;
+      if (next < app_state->count)
+        app_state->selected_index = next;
+      render_ui(app_state, app_state->width, app_state->height, output_scale);
+    }
+    break;
+
   case XKB_KEY_Escape:
     if (on_escape)
       on_escape();

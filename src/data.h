@@ -27,6 +27,7 @@ typedef struct {
   /* UI Dimensions (Shared with Input/Render) */
   uint32_t width;
   uint32_t height;
+  int cols; /* Number of columns in the current grid layout */
 } AppState;
 
 /* Initialize AppState */
