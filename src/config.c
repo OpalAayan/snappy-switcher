@@ -19,13 +19,17 @@ static void set_defaults(Config *cfg) {
   cfg->follow_monitor = false;
   strncpy(cfg->dismiss_modifier, "alt", sizeof(cfg->dismiss_modifier) - 1);
 
-  /* Default Theme Colors */
-  cfg->background = 0x1e1e2e;
-  cfg->card_bg = 0x313244;
-  cfg->card_selected = 0x45475a;
-  cfg->text_color = 0xcdd6f4;
-  cfg->subtext_color = 0xa6adc8;
-  cfg->border_color = 0x89b4fa;
+  /* Default Theme Colors (0xRRGGBBAA) */
+  cfg->background = 0x1e1e2eff;
+  cfg->card_bg = 0x313244ff;
+  cfg->card_selected = 0x45475aff;
+  cfg->text_color = 0xcdd6f4ff;
+  cfg->subtext_color = 0xa6adc8ff;
+  cfg->border_color = 0x89b4faff;
+  cfg->bundle_bg = 0x313244ff;
+  cfg->badge_bg = 0x89b4faff;
+  cfg->badge_text_color = 0xcdd6f4ff;
+  cfg->workspace_color = 0xcdd6f4ff;
   cfg->border_width = 2;
   cfg->card_radius = 12;
 
@@ -51,13 +55,17 @@ static void set_defaults(Config *cfg) {
   cfg->title_size = 10;
 }
 
-/* --- Hex Color Helper --- */
+/* --- Hex Color Helper (supports #RRGGBB and #RRGGBBAA) --- */
 static uint32_t parse_hex_color(const char *str) {
   if (!str)
     return 0;
   if (str[0] == '#')
     str++;
-  return (uint32_t)strtoul(str, NULL, 16);
+  uint32_t val = (uint32_t)strtoul(str, NULL, 16);
+  size_t len = strlen(str);
+  if (len <= 6)
+    val = (val << 8) | 0xFF; /* RGB -> RGBA (fully opaque) */
+  return val;
 }
 
 /* --- String Trimming --- */
@@ -107,6 +115,14 @@ static void apply_value(Config *cfg, const char *section, const char *key,
       cfg->subtext_color = parse_hex_color(val);
     else if (strcasecmp(key, "border_color") == 0)
       cfg->border_color = parse_hex_color(val);
+    else if (strcasecmp(key, "bundle_bg") == 0)
+      cfg->bundle_bg = parse_hex_color(val);
+    else if (strcasecmp(key, "badge_bg") == 0)
+      cfg->badge_bg = parse_hex_color(val);
+    else if (strcasecmp(key, "badge_text_color") == 0)
+      cfg->badge_text_color = parse_hex_color(val);
+    else if (strcasecmp(key, "workspace_color") == 0)
+      cfg->workspace_color = parse_hex_color(val);
     else if (strcasecmp(key, "border_width") == 0)
       cfg->border_width = atoi(val);
     else if (strcasecmp(key, "corner_radius") == 0)
@@ -367,8 +383,9 @@ Config *get_default_config(void) {
 
 void free_config(Config *cfg) { free(cfg); }
 
-void color_to_rgb(uint32_t color, double *r, double *g, double *b) {
-  *r = ((color >> 16) & 0xFF) / 255.0;
-  *g = ((color >> 8) & 0xFF) / 255.0;
-  *b = (color & 0xFF) / 255.0;
+void color_to_rgba(uint32_t color, double *r, double *g, double *b, double *a) {
+  *r = ((color >> 24) & 0xFF) / 255.0;
+  *g = ((color >> 16) & 0xFF) / 255.0;
+  *b = ((color >> 8) & 0xFF) / 255.0;
+  *a = (color & 0xFF) / 255.0;
 }

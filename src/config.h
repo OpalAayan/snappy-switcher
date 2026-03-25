@@ -13,13 +13,17 @@ typedef enum {
 
 /* Theme configuration */
 typedef struct {
-  /* Colors (0xRRGGBB) */
+  /* Colors (0xRRGGBBAA) */
   uint32_t background;
   uint32_t card_bg;
   uint32_t card_selected;
   uint32_t border_color;
   uint32_t text_color;
   uint32_t subtext_color;
+  uint32_t bundle_bg;
+  uint32_t badge_bg;
+  uint32_t badge_text_color;
+  uint32_t workspace_color;
 
   /* Layout */
   int card_width;
@@ -63,7 +67,7 @@ void free_config(Config *config);
 /* Get default config (fallback values) */
 Config *get_default_config(void);
 
-/* Helper: Convert uint32_t hex color to cairo RGB (0.0-1.0) */
-void color_to_rgb(uint32_t color, double *r, double *g, double *b);
+/* Helper: Convert uint32_t hex color (0xRRGGBBAA) to cairo RGBA (0.0-1.0) */
+void color_to_rgba(uint32_t color, double *r, double *g, double *b, double *a);
 
 #endif /* CONFIG_H */

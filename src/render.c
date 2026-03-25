@@ -27,13 +27,13 @@ static Config *cfg = NULL;
 
 /* Palette for letter icon fallbacks */
 static const uint32_t icon_colors[] = {
-    0xe78284, /* Red */
-    0xa6d189, /* Green */
-    0x8caaee, /* Blue */
-    0xca9ee6, /* Mauve */
-    0xe5c890, /* Yellow */
-    0x81c8be, /* Teal */
-    0xf4b8e4, /* Pink */
+    0xe78284ff, /* Red */
+    0xa6d189ff, /* Green */
+    0x8caaeeff, /* Blue */
+    0xca9ee6ff, /* Mauve */
+    0xe5c890ff, /* Yellow */
+    0x81c8beff, /* Teal */
+    0xf4b8e4ff, /* Pink */
 };
 #define NUM_ICON_COLORS (sizeof(icon_colors) / sizeof(icon_colors[0]))
 
@@ -103,10 +103,10 @@ static void draw_letter_icon(cairo_t *cr, const char *cls, double cx, double cy,
 
   /* Background */
   uint32_t color = icon_colors[hash_string(cls) % NUM_ICON_COLORS];
-  double r, g, b;
-  color_to_rgb(color, &r, &g, &b);
+  double r, g, b, a;
+  color_to_rgba(color, &r, &g, &b, &a);
 
-  cairo_set_source_rgb(cr, r, g, b);
+  cairo_set_source_rgba(cr, r, g, b, a);
   draw_rounded_rect(cr, cx - size / 2.0, cy - size / 2.0, size, size, radius);
   cairo_fill(cr);
 
@@ -158,16 +158,22 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
                       bool selected) {
   cairo_save(cr);
 
-  double bg_r, bg_g, bg_b;
-  double sel_r, sel_g, sel_b;
-  double brd_r, brd_g, brd_b;
-  double txt_r, txt_g, txt_b;
+  double bg_r, bg_g, bg_b, bg_a;
+  double sel_r, sel_g, sel_b, sel_a;
+  double brd_r, brd_g, brd_b, brd_a;
+  double txt_r, txt_g, txt_b, txt_a;
+  double bnd_r, bnd_g, bnd_b, bnd_a;
+  double bdg_r, bdg_g, bdg_b, bdg_a;
+  double bdt_r, bdt_g, bdt_b, bdt_a;
 
   if (cfg) {
-    color_to_rgb(cfg->card_bg, &bg_r, &bg_g, &bg_b);
-    color_to_rgb(cfg->card_selected, &sel_r, &sel_g, &sel_b);
-    color_to_rgb(cfg->border_color, &brd_r, &brd_g, &brd_b);
-    color_to_rgb(cfg->text_color, &txt_r, &txt_g, &txt_b);
+    color_to_rgba(cfg->card_bg, &bg_r, &bg_g, &bg_b, &bg_a);
+    color_to_rgba(cfg->card_selected, &sel_r, &sel_g, &sel_b, &sel_a);
+    color_to_rgba(cfg->border_color, &brd_r, &brd_g, &brd_b, &brd_a);
+    color_to_rgba(cfg->text_color, &txt_r, &txt_g, &txt_b, &txt_a);
+    color_to_rgba(cfg->bundle_bg, &bnd_r, &bnd_g, &bnd_b, &bnd_a);
+    color_to_rgba(cfg->badge_bg, &bdg_r, &bdg_g, &bdg_b, &bdg_a);
+    color_to_rgba(cfg->badge_text_color, &bdt_r, &bdt_g, &bdt_b, &bdt_a);
   }
 
   int w = cfg ? cfg->card_width : 200;
@@ -176,27 +182,27 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
 
   /* Stack effect (Context Mode) */
   if (win->group_count > 1) {
-    cairo_set_source_rgba(cr, bg_r, bg_g, bg_b, 0.5);
+    cairo_set_source_rgba(cr, bnd_r, bnd_g, bnd_b, bnd_a);
     draw_rounded_rect(cr, x + 6, y + 6, w, h, r);
     cairo_fill(cr);
 
-    cairo_set_source_rgba(cr, bg_r, bg_g, bg_b, 0.7);
+    cairo_set_source_rgba(cr, bnd_r, bnd_g, bnd_b, bnd_a);
     draw_rounded_rect(cr, x + 3, y + 3, w, h, r);
     cairo_fill(cr);
   }
 
   /* Main Card */
   if (selected)
-    cairo_set_source_rgb(cr, sel_r, sel_g, sel_b);
+    cairo_set_source_rgba(cr, sel_r, sel_g, sel_b, sel_a);
   else
-    cairo_set_source_rgb(cr, bg_r, bg_g, bg_b);
+    cairo_set_source_rgba(cr, bg_r, bg_g, bg_b, bg_a);
 
   draw_rounded_rect(cr, x, y, w, h, r);
   cairo_fill(cr);
 
   /* Border */
   if (selected) {
-    cairo_set_source_rgb(cr, brd_r, brd_g, brd_b);
+    cairo_set_source_rgba(cr, brd_r, brd_g, brd_b, brd_a);
     cairo_set_line_width(cr, cfg ? cfg->border_width : 2);
     draw_rounded_rect(cr, x, y, w, h, r);
     cairo_stroke(cr);
@@ -209,7 +215,7 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
   pango_layout_set_alignment(title, PANGO_ALIGN_CENTER);
   pango_layout_set_text(title, win->title, -1);
 
-  cairo_set_source_rgb(cr, txt_r, txt_g, txt_b);
+  cairo_set_source_rgba(cr, txt_r, txt_g, txt_b, txt_a);
   cairo_move_to(cr, x + 10, y + 10);
   pango_cairo_show_layout(cr, title);
   g_object_unref(title);
@@ -226,20 +232,19 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
     double bx = x + w - 24;
     double by = y + h - 24;
 
-    /* Badge BG (Accent) */
-    cairo_set_source_rgb(cr, brd_r, brd_g, brd_b);
+    /* Badge BG */
+    cairo_set_source_rgba(cr, bdg_r, bdg_g, bdg_b, bdg_a);
     cairo_arc(cr, bx, by, 10, 0, 2 * M_PI);
     cairo_fill(cr);
 
-    /* Badge Text (Config Text Color) */
+    /* Badge Text */
     PangoLayout *bl = create_layout(cr, 10);
     pango_layout_set_text(bl, count, -1);
 
     int bw, bh;
     pango_layout_get_pixel_size(bl, &bw, &bh);
 
-    /* Use text_color as requested */
-    cairo_set_source_rgb(cr, txt_r, txt_g, txt_b);
+    cairo_set_source_rgba(cr, bdt_r, bdt_g, bdt_b, bdt_a);
     cairo_move_to(cr, bx - bw / 2.0, by - bh / 2.0);
     pango_cairo_show_layout(cr, bl);
     g_object_unref(bl);
@@ -302,23 +307,24 @@ void render_ui(AppState *state, uint32_t logical_width, uint32_t logical_height,
   cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
 
   /* Background */
-  double r, g, b;
+  double r, g, b, a;
   if (cfg)
-    color_to_rgb(cfg->background, &r, &g, &b);
+    color_to_rgba(cfg->background, &r, &g, &b, &a);
   else {
     r = 0.1;
     g = 0.1;
     b = 0.2;
+    a = 0.95;
   }
 
-  cairo_set_source_rgba(cr, r, g, b, 0.95);
+  cairo_set_source_rgba(cr, r, g, b, a);
   int rad = cfg ? cfg->card_radius : 12;
   draw_rounded_rect(cr, 0, 0, logical_width, logical_height, rad + 4);
   cairo_fill(cr);
 
   /* Border */
   if (cfg)
-    color_to_rgb(cfg->border_color, &r, &g, &b);
+    color_to_rgba(cfg->border_color, &r, &g, &b, &a);
   cairo_set_source_rgba(cr, r, g, b, 0.3);
   cairo_set_line_width(cr, 1);
   draw_rounded_rect(cr, 0.5, 0.5, logical_width - 1, logical_height - 1,
@@ -333,7 +339,7 @@ void render_ui(AppState *state, uint32_t logical_width, uint32_t logical_height,
     pango_layout_get_pixel_size(msg, &mw, &mh);
 
     if (cfg)
-      color_to_rgb(cfg->text_color, &r, &g, &b);
+      color_to_rgba(cfg->text_color, &r, &g, &b, &a);
     cairo_set_source_rgba(cr, r, g, b, 0.5);
     cairo_move_to(cr, (logical_width - mw) / 2.0, (logical_height - mh) / 2.0);
     pango_cairo_show_layout(cr, msg);
