@@ -43,7 +43,7 @@ mkdir -p "$THEMES_DIR"
 # Copy themes
 if [ -d "$SYSTEM_THEMES" ]; then
     echo "🎨 Copying themes from $SYSTEM_THEMES..."
-    cp -n "$SYSTEM_THEMES"/*.ini "$THEMES_DIR/" 2>/dev/null || true
+    cp "$SYSTEM_THEMES"/*.ini "$THEMES_DIR/" 2>/dev/null || true
 fi
 
 # Copy config

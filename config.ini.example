@@ -1,6 +1,6 @@
 # ╔═══════════════════════════════════════════════════════════════════════════╗
 # ║                     SNAPPY SWITCHER CONFIGURATION                         ║
-# ║                           v2.1.0 Stable Release                           ║
+# ║                           v2.1.3 Stable Release                           ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
 #
 # This file controls all aspects of the Snappy Switcher window switcher.
@@ -48,6 +48,8 @@ dismiss_modifier = alt
 #   gruvbox-dark.ini      - Gruvbox Dark
 #   grovestorm.ini        - Gruvbox + Evergreen theme
 #   tokyo-night.ini       - Tokyo Night
+#   liquid-glassW.ini     - Liquid Glass White (frosted acrylic, needs blur)
+#   liquid-glassB.ini     - Liquid Glass Black (smoked glass, needs blur)
 #
 name = snappy-slate.ini
 
@@ -55,12 +57,18 @@ name = snappy-slate.ini
 # These will be applied AFTER the theme file is loaded
 # Uncomment and modify to customize:
 #
-# background = #1e1e2e
-# card_bg = #313244
-# card_selected = #45475a
-# text_color = #cdd6f4
-# subtext_color = #a6adc8
-# border_color = #89b4fa
+# background = #1e1e2eff
+# card_bg = #313244ff
+# card_selected = #45475aff
+# text_color = #cdd6f4ff
+# subtext_color = #a6adc8ff
+# border_color = #89b4faff
+#
+# Granular UI element colors (all support 8-char #RRGGBBAA for transparency)
+# bundle_bg = #313244ff        # Context-mode stacked card background
+# badge_bg = #89b4faff         # Group count badge circle
+# badge_text_color = #cdd6f4ff # Group count badge number
+# workspace_color = #cdd6f4ff  # Workspace label text
 
 # Border and corner styling
 border_width = 2
