@@ -268,10 +268,9 @@ void calculate_dimensions(AppState *state, uint32_t *width, uint32_t *height) {
   *width = (cols * w) + ((cols - 1) * gap) + (pad * 2);
   *height = (rows * h) + ((rows - 1) * gap) + (pad * 2);
 
-  if (*width < 200)
-    *width = 200;
-  if (*height < 150)
-    *height = 150;
+  /* Prevent Wayland 0x0 buffer crashes */
+  if (*width <= 0) *width = 10;
+  if (*height <= 0) *height = 10;
 }
 
 void render_ui(AppState *state, uint32_t logical_width, uint32_t logical_height,
