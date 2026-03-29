@@ -17,6 +17,24 @@
 
 static int server_fd = -1;
 
+/* Build the socket path once, return the same buffer thereafter.
+ * Prefers $XDG_RUNTIME_DIR (mode 0700, per-user tmpdir on systemd/elogind),
+ * falls back to /tmp/snappy-switcher-<UID>.sock for non-systemd setups. */
+const char *get_socket_path(void) {
+  static char path[256] = {0};
+  if (path[0] != '\0')
+    return path;
+
+  const char *xdg = getenv("XDG_RUNTIME_DIR");
+  if (xdg && xdg[0] != '\0') {
+    snprintf(path, sizeof(path), "%s/snappy-switcher.sock", xdg);
+  } else {
+    snprintf(path, sizeof(path), "/tmp/snappy-switcher-%d.sock",
+             (int)getuid());
+  }
+  return path;
+}
+
 /* Set socket to non-blocking */
 static int set_nonblocking(int fd) {
   int flags = fcntl(fd, F_GETFL, 0);
@@ -27,8 +45,10 @@ static int set_nonblocking(int fd) {
 
 /* Initialize server socket */
 int init_server(void) {
+  const char *sock_path = get_socket_path();
+
   /* Remove old socket file - handles zombie instances from crashes */
-  if (unlink(SOCKET_PATH) == 0) {
+  if (unlink(sock_path) == 0) {
     LOG("Removed stale socket file from previous instance");
   } else if (errno != ENOENT) {
     LOG("Warning: Could not remove old socket: %s", strerror(errno));
@@ -43,7 +63,7 @@ int init_server(void) {
   struct sockaddr_un addr;
   memset(&addr, 0, sizeof(addr));
   addr.sun_family = AF_UNIX;
-  strncpy(addr.sun_path, SOCKET_PATH, sizeof(addr.sun_path) - 1);
+  strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
 
   if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     LOG("Failed to bind socket: %s", strerror(errno));
@@ -53,7 +73,7 @@ int init_server(void) {
   }
 
   /* Secure socket: owner read/write only (prevents local user attacks) */
-  if (chmod(SOCKET_PATH, 0600) < 0) {
+  if (chmod(sock_path, 0600) < 0) {
     LOG("Warning: Could not secure socket permissions: %s", strerror(errno));
   }
 
@@ -68,7 +88,7 @@ int init_server(void) {
     LOG("Failed to set non-blocking: %s", strerror(errno));
   }
 
-  LOG("Server listening on %s", SOCKET_PATH);
+  LOG("Server listening on %s", sock_path);
   return server_fd;
 }
 
@@ -97,7 +117,7 @@ void cleanup_server(int srv_fd) {
   if (srv_fd >= 0) {
     close(srv_fd);
   }
-  unlink(SOCKET_PATH);
+  unlink(get_socket_path());
   server_fd = -1;
   LOG("Server cleaned up");
 }
@@ -110,10 +130,11 @@ int send_command(const char *cmd) {
     return -1;
   }
 
+  const char *sock_path = get_socket_path();
   struct sockaddr_un addr;
   memset(&addr, 0, sizeof(addr));
   addr.sun_family = AF_UNIX;
-  strncpy(addr.sun_path, SOCKET_PATH, sizeof(addr.sun_path) - 1);
+  strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
 
   if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     LOG("Failed to connect to daemon: %s", strerror(errno));
@@ -121,14 +142,22 @@ int send_command(const char *cmd) {
     return -1;
   }
 
-  ssize_t written = write(sock, cmd, strlen(cmd));
-  close(sock);
-
-  if (written < 0) {
-    LOG("Failed to send command: %s", strerror(errno));
-    return -1;
+  /* EINTR-safe write */
+  size_t total = 0;
+  size_t len = strlen(cmd);
+  while (total < len) {
+    ssize_t written = write(sock, cmd + total, len - total);
+    if (written < 0) {
+      if (errno == EINTR)
+        continue;
+      LOG("Failed to send command: %s", strerror(errno));
+      close(sock);
+      return -1;
+    }
+    total += (size_t)written;
   }
 
+  close(sock);
   return 0;
 }
 
@@ -138,10 +167,11 @@ bool is_daemon_running(void) {
   if (sock < 0)
     return false;
 
+  const char *sock_path = get_socket_path();
   struct sockaddr_un addr;
   memset(&addr, 0, sizeof(addr));
   addr.sun_family = AF_UNIX;
-  strncpy(addr.sun_path, SOCKET_PATH, sizeof(addr.sun_path) - 1);
+  strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
 
   int result = connect(sock, (struct sockaddr *)&addr, sizeof(addr));
   close(sock);

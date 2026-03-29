@@ -24,4 +24,7 @@ void render_ui(AppState *state, uint32_t width, uint32_t height, int scale);
 /* Create a shared memory file for Wayland buffers */
 int create_shm_file(off_t size);
 
+/* Free any in-flight render buffers (call during shutdown) */
+void render_cleanup_buffers(void);
+
 #endif /* RENDER_H */

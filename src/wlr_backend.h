@@ -20,4 +20,10 @@ void wlr_activate_window(const char *identifier);
 /* Get backend name */
 const char *wlr_get_name(void);
 
+/* Get the wlr display FD for polling (-1 if not initialized) */
+int wlr_backend_get_fd(void);
+
+/* Dispatch pending wlr events (call when the FD is readable) */
+void wlr_backend_dispatch(void);
+
 #endif /* WLR_BACKEND_H */

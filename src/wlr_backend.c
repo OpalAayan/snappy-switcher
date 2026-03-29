@@ -549,3 +549,31 @@ void wlr_activate_window(const char *identifier) {
 }
 
 const char *wlr_get_name(void) { return "wlr"; }
+
+int wlr_backend_get_fd(void) {
+  if (!backend_state.initialized || !backend_state.display)
+    return -1;
+  return wl_display_get_fd(backend_state.display);
+}
+
+void wlr_backend_dispatch(void) {
+  if (!backend_state.initialized || !backend_state.display)
+    return;
+
+  /* Drain all pending events from the wlr compositor connection.
+   * This keeps the socket buffer clear and prevents disconnects. */
+  while (wl_display_prepare_read(backend_state.display) != 0) {
+    wl_display_dispatch_pending(backend_state.display);
+  }
+  wl_display_flush(backend_state.display);
+
+  struct pollfd pfd = {.fd = wl_display_get_fd(backend_state.display),
+                       .events = POLLIN};
+
+  if (poll(&pfd, 1, 0) > 0 && (pfd.revents & POLLIN)) {
+    wl_display_read_events(backend_state.display);
+  } else {
+    wl_display_cancel_read(backend_state.display);
+  }
+  wl_display_dispatch_pending(backend_state.display);
+}

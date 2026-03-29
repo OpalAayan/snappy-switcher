@@ -59,6 +59,7 @@ void window_info_free(WindowInfo *info) {
     free(info->address);
     free(info->title);
     free(info->class_name);
+    free(info->workspace_name);
     memset(info, 0, sizeof(WindowInfo));
   }
 }
@@ -143,9 +144,18 @@ static char *hyprland_request(const char *cmd) {
     return NULL;
   }
 
-  if (write(fd, cmd, strlen(cmd)) < 0) {
-    close(fd);
-    return NULL;
+  /* EINTR-safe write */
+  size_t cmd_len = strlen(cmd);
+  size_t written_total = 0;
+  while (written_total < cmd_len) {
+    ssize_t w = write(fd, cmd + written_total, cmd_len - written_total);
+    if (w < 0) {
+      if (errno == EINTR)
+        continue;
+      close(fd);
+      return NULL;
+    }
+    written_total += (size_t)w;
   }
 
   size_t capacity = BUFFER_SIZE;
@@ -153,8 +163,16 @@ static char *hyprland_request(const char *cmd) {
   size_t total = 0;
   ssize_t n;
 
-  while ((n = read(fd, resp + total, capacity - total - 1)) > 0) {
-    total += n;
+  while ((n = read(fd, resp + total, capacity - total - 1)) != 0) {
+    if (n < 0) {
+      if (errno == EINTR)
+        continue;
+      /* Real error */
+      free(resp);
+      close(fd);
+      return NULL;
+    }
+    total += (size_t)n;
     if (total >= capacity - 1) {
       capacity *= 2;
       char *tmp = realloc(resp, capacity);
@@ -183,7 +201,7 @@ static int parse_clients(const char *json_str, AppState *state) {
   size_t len = json_object_array_length(root);
   for (size_t i = 0; i < len; i++) {
     struct json_object *obj = json_object_array_get_idx(root, i);
-    struct json_object *ws_obj, *ws_id, *addr, *title, *cls, *focus, *floating;
+    struct json_object *ws_obj, *ws_id, *ws_name, *addr, *title, *cls, *focus, *floating;
 
     if (!json_object_object_get_ex(obj, "workspace", &ws_obj))
       continue;
@@ -194,6 +212,7 @@ static int parse_clients(const char *json_str, AppState *state) {
      if (wid == -1) 
       continue;
 
+    json_object_object_get_ex(ws_obj, "name", &ws_name);
     json_object_object_get_ex(obj, "address", &addr);
     json_object_object_get_ex(obj, "title", &title);
     json_object_object_get_ex(obj, "class", &cls);
@@ -205,6 +224,7 @@ static int parse_clients(const char *json_str, AppState *state) {
     info.title = safe_strdup(json_object_get_string(title));
     info.class_name = safe_strdup(json_object_get_string(cls));
     info.workspace_id = wid;
+    info.workspace_name = safe_strdup(ws_name ? json_object_get_string(ws_name) : "");
     info.focus_history_id = focus ? json_object_get_int(focus) : 9999;
     info.is_active = (info.focus_history_id == 0);
     info.is_floating = floating ? json_object_get_boolean(floating) : false;
@@ -234,6 +254,7 @@ static void aggregate_context(AppState *state) {
       out[out_count].title = safe_strdup(win->title);
       out[out_count].class_name = safe_strdup(win->class_name);
       out[out_count].workspace_id = win->workspace_id;
+      out[out_count].workspace_name = safe_strdup(win->workspace_name);
       out[out_count].focus_history_id = win->focus_history_id;
       out[out_count].is_active = win->is_active;
       out[out_count].is_floating = true;
@@ -256,6 +277,7 @@ static void aggregate_context(AppState *state) {
         out[out_count].title = safe_strdup(win->title);
         out[out_count].class_name = safe_strdup(win->class_name);
         out[out_count].workspace_id = win->workspace_id;
+        out[out_count].workspace_name = safe_strdup(win->workspace_name);
         out[out_count].focus_history_id = win->focus_history_id;
         out[out_count].is_active = win->is_active;
         out[out_count].is_floating = false;

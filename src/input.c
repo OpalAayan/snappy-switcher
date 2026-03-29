@@ -3,7 +3,7 @@
 
 #include "input.h"
 #include "hyprland.h"
-#include "render.h"
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -180,7 +180,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
         if (app_state->selected_index >= app_state->count)
           app_state->selected_index = 0;
       }
-      render_ui(app_state, app_state->width, app_state->height, output_scale);
+      app_state->needs_render = true;
     }
     break;
 
@@ -189,7 +189,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
       app_state->selected_index--;
       if (app_state->selected_index < 0)
         app_state->selected_index = app_state->count - 1;
-      render_ui(app_state, app_state->width, app_state->height, output_scale);
+      app_state->needs_render = true;
     }
     break;
 
@@ -198,7 +198,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
       app_state->selected_index++;
       if (app_state->selected_index >= app_state->count)
         app_state->selected_index = 0;
-      render_ui(app_state, app_state->width, app_state->height, output_scale);
+      app_state->needs_render = true;
     }
     break;
 
@@ -207,7 +207,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
       int next = app_state->selected_index - app_state->cols;
       if (next >= 0)
         app_state->selected_index = next;
-      render_ui(app_state, app_state->width, app_state->height, output_scale);
+      app_state->needs_render = true;
     }
     break;
 
@@ -216,7 +216,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
       int next = app_state->selected_index + app_state->cols;
       if (next < app_state->count)
         app_state->selected_index = next;
-      render_ui(app_state, app_state->width, app_state->height, output_scale);
+      app_state->needs_render = true;
     }
     break;
 

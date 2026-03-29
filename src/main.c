@@ -7,6 +7,7 @@
 #include "input.h"
 #include "render.h"
 #include "socket.h"
+#include "wlr_backend.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
@@ -50,6 +51,7 @@ struct wl_keyboard *keyboard = NULL;
 
 static bool running = true;
 static bool visible = false;
+static bool is_configured = false;
 
 static AppState app_state;
 static Config *config = NULL;
@@ -84,9 +86,10 @@ static void layer_surface_configure(void *data,
     app_state.height = h;
   }
   zwlr_layer_surface_v1_ack_configure(layer_surf, serial);
+  is_configured = true;
 
   if (visible) {
-    render_ui(&app_state, app_state.width, app_state.height, output_scale);
+    app_state.needs_render = true;
   }
 }
 
@@ -218,6 +221,7 @@ static void destroy_panel(void) {
     surface = NULL;
   }
   visible = false;
+  is_configured = false;
   LOG("Panel destroyed");
 }
 
@@ -245,7 +249,8 @@ static void create_panel(void) {
 
   zwlr_layer_surface_v1_set_size(layer_surface, 1, 1); // 最小初始尺寸
   zwlr_layer_surface_v1_set_anchor(layer_surface, 0);
-  zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface, 0);
+  zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface,
+      ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
   zwlr_layer_surface_v1_add_listener(layer_surface, &layer_surface_listener,
                                      NULL);
 
@@ -261,6 +266,7 @@ static void hide_switcher(void) {
     return;
 
   visible = false;
+  is_configured = false;
 
   if (config && config->follow_monitor) {
     destroy_panel();
@@ -307,7 +313,8 @@ static void show_switcher(void) {
   app_state.cols = (app_state.count < max_cols) ? app_state.count : max_cols;
   zwlr_layer_surface_v1_set_size(layer_surface, app_state.width,
                                  app_state.height);
-  zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface, 1);
+  zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface,
+      ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND);
 
   visible = true;
   wl_surface_set_buffer_scale(surface, output_scale);
@@ -361,7 +368,7 @@ static void handle_command(const char *cmd) {
     if (dir != 0 && app_state.count > 0) {
       app_state.selected_index =
           (app_state.selected_index + dir + app_state.count) % app_state.count;
-      render_ui(&app_state, app_state.width, app_state.height, output_scale);
+      app_state.needs_render = true;
     } else if (strcmp(cmd, CMD_SELECT) == 0) {
       select_and_hide();
     }
@@ -423,7 +430,7 @@ static int takeover_existing_daemon(void) {
 
   /* Step 3: Force takeover - unlink the socket file */
   LOG("Timeout! Old daemon did not respond - forcing takeover...");
-  if (unlink(SOCKET_PATH) == 0) {
+  if (unlink(get_socket_path()) == 0) {
     LOG("Forcefully removed stale socket");
   } else {
     LOG("Warning: Could not unlink socket: %s", strerror(errno));
@@ -517,7 +524,8 @@ static int run_daemon(const char *config_path) {
   zwlr_layer_surface_v1_set_size(layer_surface, 1,
                                  1); /* Minimal initial size */
   zwlr_layer_surface_v1_set_anchor(layer_surface, 0);
-  zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface, 0);
+  zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface,
+      ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
   zwlr_layer_surface_v1_add_listener(layer_surface, &layer_surface_listener,
                                      NULL);
   wl_surface_commit(surface);
@@ -532,11 +540,15 @@ static int run_daemon(const char *config_path) {
 
   LOG("Daemon Started (PID: %d)", getpid());
 
-  struct pollfd fds[2];
+  /* Poll array: [0] main compositor, [1] IPC socket, [2] wlr backend display */
+  int wlr_fd = wlr_backend_get_fd();
+  struct pollfd fds[3];
   fds[0].fd = wl_display_get_fd(display);
   fds[0].events = POLLIN;
   fds[1].fd = socket_fd;
   fds[1].events = POLLIN;
+  fds[2].fd = wlr_fd;  /* -1 if Hyprland backend — poll() ignores fd < 0 */
+  fds[2].events = POLLIN;
 
   while (running && !should_quit) {
     while (wl_display_prepare_read(display) != 0) {
@@ -544,7 +556,7 @@ static int run_daemon(const char *config_path) {
     }
     wl_display_flush(display);
 
-    if (poll(fds, 2, 100) < 0) {
+    if (poll(fds, 3, 100) < 0) {
       if (errno == EINTR) {
         wl_display_cancel_read(display);
         continue;
@@ -557,6 +569,11 @@ static int run_daemon(const char *config_path) {
       wl_display_dispatch_pending(display);
     } else {
       wl_display_cancel_read(display);
+    }
+
+    /* Background wlr dispatch: keeps the toplevel manager connection alive */
+    if (fds[2].fd >= 0 && (fds[2].revents & POLLIN)) {
+      wlr_backend_dispatch();
     }
 
     if (fds[1].revents & POLLIN) {
@@ -572,8 +589,13 @@ static int run_daemon(const char *config_path) {
           break;
         }
 
+        /* EINTR-safe IPC read */
         char buffer[256];
-        ssize_t n = read(client, buffer, sizeof(buffer) - 1);
+        ssize_t n;
+        do {
+          n = read(client, buffer, sizeof(buffer) - 1);
+        } while (n == -1 && errno == EINTR);
+
         if (n > 0) {
           buffer[n] = '\0';
           if (buffer[n - 1] == '\n')
@@ -583,6 +605,12 @@ static int run_daemon(const char *config_path) {
         }
         close(client);
       }
+    }
+
+    /* --- Deferred render: one frame per loop iteration --- */
+    if (visible && app_state.needs_render && is_configured) {
+      app_state.needs_render = false;
+      render_ui(&app_state, app_state.width, app_state.height, output_scale);
     }
   }
 
@@ -596,6 +624,7 @@ static int run_daemon(const char *config_path) {
   cleanup_server(socket_fd);
   input_cleanup();
   icons_cleanup();
+  render_cleanup_buffers();
   app_state_free(&app_state);
   free_config(config);
 

@@ -10,7 +10,6 @@ typedef enum {
   MODE_OVERVIEW, /* Show all windows individually */
   MODE_CONTEXT   /* Group tiled windows by workspace + app class */
 } ViewMode;
-
 /* Theme configuration */
 typedef struct {
   /* Colors (0xRRGGBBAA) */
@@ -23,7 +22,6 @@ typedef struct {
   uint32_t bundle_bg;
   uint32_t badge_bg;
   uint32_t badge_text_color;
-  uint32_t workspace_color;
 
   /* Layout */
   int card_width;
@@ -49,6 +47,7 @@ typedef struct {
 
   /* View Mode */
   bool follow_monitor;
+  bool show_workspace_badge;
   ViewMode mode;
 
   /* Dismiss modifier: which modifier release hides the switcher (e.g. alt, super) */

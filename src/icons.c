@@ -17,7 +17,7 @@
 #endif
 
 #define LOG(fmt, ...) fprintf(stderr, "[Icons] " fmt "\n", ##__VA_ARGS__)
-#define MAX_CACHE 64
+#define MAX_CACHE 256
 #define MAX_PATH 512
 
 /* =========================================================================
@@ -106,11 +106,13 @@ static char fallback_theme_name[64] = "Tela-circle-dracula";
 /* XDG icon search paths */
 static char user_icons_path[MAX_PATH];
 static char user_icons_path2[MAX_PATH];
-static const char *icon_dirs[8];
+static char dyn_icon_paths[64][MAX_PATH];
+static const char *icon_dirs[64];
 
 /* Desktop file search paths */
 static char user_desktop_path[MAX_PATH];
-static const char *desktop_dirs[8];
+static char dyn_desktop_paths[64][MAX_PATH];
+static const char *desktop_dirs[64];
 
 /* =========================================================================
  * UTILITY FUNCTIONS
@@ -151,11 +153,17 @@ static void init_paths(void) {
   int icon_idx = 0;
   int desktop_idx = 0;
 
-  /* User icon paths */
+  /* -----------------------------------------------------------
+   * Step 1: User-local paths (highest priority, at front)
+   * ----------------------------------------------------------- */
+
+  /* $HOME/.icons */
   if (home) {
     snprintf(user_icons_path, sizeof(user_icons_path), "%s/.icons", home);
     icon_dirs[icon_idx++] = user_icons_path;
   }
+
+  /* $XDG_DATA_HOME/icons  (or ~/.local/share/icons) */
   if (data_home) {
     snprintf(user_icons_path2, sizeof(user_icons_path2), "%s/icons", data_home);
   } else if (home) {
@@ -163,13 +171,8 @@ static void init_paths(void) {
              "%s/.local/share/icons", home);
   }
   icon_dirs[icon_idx++] = user_icons_path2;
-  icon_dirs[icon_idx++] = "/usr/share/icons";
-  icon_dirs[icon_idx++] = "/usr/local/share/icons";
-  icon_dirs[icon_idx++] = "/var/lib/flatpak/exports/share/icons";
-  icon_dirs[icon_idx++] = "/usr/share/pixmaps";
-  icon_dirs[icon_idx] = NULL;
 
-  /* Desktop file paths */
+  /* $XDG_DATA_HOME/applications  (or ~/.local/share/applications) */
   if (data_home) {
     snprintf(user_desktop_path, sizeof(user_desktop_path), "%s/applications",
              data_home);
@@ -178,9 +181,66 @@ static void init_paths(void) {
              "%s/.local/share/applications", home);
   }
   desktop_dirs[desktop_idx++] = user_desktop_path;
-  desktop_dirs[desktop_idx++] = "/usr/share/applications";
-  desktop_dirs[desktop_idx++] = "/usr/local/share/applications";
-  desktop_dirs[desktop_idx++] = "/var/lib/flatpak/exports/share/applications";
+
+  /* -----------------------------------------------------------
+   * Step 2: Parse XDG_DATA_DIRS (colon-separated)
+   *         Fallback: "/usr/local/share:/usr/share"
+   * ----------------------------------------------------------- */
+  const char *xdg_data_dirs = getenv("XDG_DATA_DIRS");
+  if (!xdg_data_dirs || xdg_data_dirs[0] == '\0') {
+    xdg_data_dirs = "/usr/local/share:/usr/share";
+  }
+
+  /* strtok mutates, so work on a copy (stack buffer, no malloc) */
+  char xdg_buf[4096];
+  strncpy(xdg_buf, xdg_data_dirs, sizeof(xdg_buf) - 1);
+  xdg_buf[sizeof(xdg_buf) - 1] = '\0';
+
+  /* -----------------------------------------------------------
+   * Step 3: Build <token>/icons and <token>/applications paths
+   * ----------------------------------------------------------- */
+  char *saveptr = NULL;
+  char *token = strtok_r(xdg_buf, ":", &saveptr);
+
+  while (token) {
+    /* Strip leading/trailing whitespace */
+    while (*token == ' ')
+      token++;
+    size_t tlen = strlen(token);
+    while (tlen > 0 && token[tlen - 1] == ' ')
+      token[--tlen] = '\0';
+
+    if (tlen > 0) {
+      /* Icon path: <token>/icons */
+      if (icon_idx < 62) { /* leave room for pixmaps + NULL */
+        snprintf(dyn_icon_paths[icon_idx], MAX_PATH, "%s/icons", token);
+        icon_dirs[icon_idx] = dyn_icon_paths[icon_idx];
+        icon_idx++;
+      }
+
+      /* Desktop path: <token>/applications */
+      if (desktop_idx < 63) { /* leave room for NULL */
+        snprintf(dyn_desktop_paths[desktop_idx], MAX_PATH, "%s/applications",
+                 token);
+        desktop_dirs[desktop_idx] = dyn_desktop_paths[desktop_idx];
+        desktop_idx++;
+      }
+    }
+
+    token = strtok_r(NULL, ":", &saveptr);
+  }
+
+  /* -----------------------------------------------------------
+   * Step 4: Legacy fallback — pixmaps
+   * ----------------------------------------------------------- */
+  if (icon_idx < 63) {
+    icon_dirs[icon_idx++] = "/usr/share/pixmaps";
+  }
+
+  /* -----------------------------------------------------------
+   * Step 5: NULL-terminate both arrays
+   * ----------------------------------------------------------- */
+  icon_dirs[icon_idx] = NULL;
   desktop_dirs[desktop_idx] = NULL;
 }
 

@@ -4,8 +4,11 @@
 
 #include <stdbool.h>
 
-/* Socket path */
-#define SOCKET_PATH "/tmp/snappy-switcher.sock"
+/* Compute the runtime socket path.
+ * Uses $XDG_RUNTIME_DIR/snappy-switcher.sock when available,
+ * falls back to /tmp/snappy-switcher-<UID>.sock otherwise.
+ * Returns a pointer to an internal static buffer (do NOT free). */
+const char *get_socket_path(void);
 
 /* Commands */
 #define CMD_NEXT "NEXT"

@@ -1,6 +1,5 @@
 /* src/render.c - Clean Grid UI Rendering */
-#define _POSIX_C_SOURCE 200809L
-#define _USE_MATH_DEFINES
+#define _GNU_SOURCE
 
 #include "render.h"
 #include "config.h"
@@ -40,11 +39,18 @@ static const uint32_t icon_colors[] = {
 void render_set_config(Config *config) { cfg = config; }
 
 int create_shm_file(off_t size) {
-  char name[] = "/tmp/snappy-shm-XXXXXX";
-  int fd = mkstemp(name);
-  if (fd < 0)
-    return -1;
-  unlink(name);
+  int fd = -1;
+#ifdef __linux__
+  fd = memfd_create("snappy-shm", MFD_CLOEXEC);
+#endif
+  if (fd < 0) {
+    /* Fallback for kernels without memfd_create */
+    char name[] = "/tmp/snappy-shm-XXXXXX";
+    fd = mkstemp(name);
+    if (fd < 0)
+      return -1;
+    unlink(name);
+  }
   if (ftruncate(fd, size) < 0) {
     close(fd);
     return -1;
@@ -154,6 +160,156 @@ static void draw_icon(cairo_t *cr, const char *cls, double cx, double cy) {
   cairo_restore(cr);
 }
 
+/* --- Workspace Tag Formatting --- */
+
+/*
+ * Check if a workspace name is a pure integer string (e.g. "1", "42").
+ * Returns true for standard numbered workspaces.
+ */
+static bool is_numeric_name(const char *name) {
+  if (!name || !*name)
+    return false;
+  const char *p = name;
+  if (*p == '-')
+    p++; /* allow negative */
+  if (!*p)
+    return false;
+  while (*p) {
+    if (*p < '0' || *p > '9')
+      return false;
+    p++;
+  }
+  return true;
+}
+
+/*
+ * Memoizing letter tracker for named workspace deduplication.
+ *
+ * Caches exact workspace names → assigned occurrence indices so that
+ * multiple windows on the same named workspace share a single tag.
+ * The next-available index per starting letter is tracked separately.
+ */
+#define LT_MAX_NAMES 512
+
+typedef struct {
+  const char *seen_names[LT_MAX_NAMES]; /* Exact workspace names seen so far */
+  int assigned_indices[LT_MAX_NAMES];   /* Occurrence index assigned to each */
+  int seen_count;                       /* How many distinct names cached    */
+  int next_idx[128];                    /* Next available index per letter   */
+} LetterTracker;
+
+/*
+ * Zero the tracker.  Call once at the start of each render pass.
+ */
+static void letter_tracker_init(LetterTracker *lt) {
+  memset(lt, 0, sizeof(LetterTracker));
+}
+
+/*
+ * Look up (or lazily assign) the 0-based occurrence index for a workspace name.
+ *
+ * If the exact name has been seen before, returns the previously assigned index
+ * (idempotent).  Otherwise assigns the next available index for that letter,
+ * caches the mapping, and returns the new index.
+ */
+static int letter_tracker_assign(LetterTracker *lt, const char *name) {
+  /* Check cache for an exact match first */
+  for (int i = 0; i < lt->seen_count; i++) {
+    if (strcmp(lt->seen_names[i], name) == 0)
+      return lt->assigned_indices[i];
+  }
+
+  /* New name — grab the next index for this starting letter */
+  int key = toupper((unsigned char)name[0]);
+  if (key < 0 || key >= 128)
+    key = 0;
+
+  int idx = lt->next_idx[key]++;
+
+  /* Cache the mapping (bounds-checked) */
+  if (lt->seen_count < LT_MAX_NAMES) {
+    lt->seen_names[lt->seen_count] = name;   /* borrows pointer — valid for this render pass */
+    lt->assigned_indices[lt->seen_count] = idx;
+    lt->seen_count++;
+  }
+
+  return idx;
+}
+
+/*
+ * Format a workspace tag string for display.
+ *
+ * Rules (strict priority):
+ *   1. Special workspaces (id < 0 or name starts with "special:"):
+ *      -> "[S]" or "[S:F]" if floating
+ *
+ *   2. Standard numbered workspaces (name is a pure integer):
+ *      -> "[N]" or "[F:N]" if floating
+ *
+ *   3. Named workspaces (the complex case):
+ *      First char uppercased, with occurrence index:
+ *      - 1st (idx 0):   "[M]"      / "[M:F]"
+ *      - 2nd (idx 1):   "[M:1]"    / "[M:1:F]"
+ *      - 100th (idx 99): "[M:99]"  / "[M:99:F]"
+ *      - 101st (idx 100): "[M:∞]"  (always, even if floating)
+ *      - >101 (idx >100): easter egg string
+ *
+ * Returns a heap-allocated string. Caller must free().
+ */
+static char *format_workspace_tag(WindowInfo *win, LetterTracker *lt) {
+  const char *name = win->workspace_name;
+
+ /* --- Rule 1: Special workspaces --- */
+  if (name && strncmp(name, "special:", 8) == 0) {
+    return win->is_floating ? strdup("[S:F]") : strdup("[S]");
+  }
+
+  /* --- Rule 2: Standard numbered workspaces --- */
+  if (!name || !*name || is_numeric_name(name)) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "[%s%d]",
+             win->is_floating ? "F:" : "", win->workspace_id);
+    return strdup(buf);
+  }
+
+  /* --- Rule 3: Named workspaces --- */
+  char letter = toupper((unsigned char)name[0]);
+  int idx = letter_tracker_assign(lt, name);
+
+  /* What if User is a stubborn ass > 101 occurrences (index > 100) */
+  if (idx > 100) {
+    return strdup("Fuck you user, pick a damn name with different letters");
+  }
+
+  /* Exactly 101st (index 100): infinity */
+  if (idx == 100) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "[%c:\xe2\x88\x9e]", letter); /* ∞ is UTF-8: E2 88 9E */
+    return strdup(buf);
+  }
+
+  /* Index 0: just the letter */
+  if (idx == 0) {
+    char buf[16];
+    if (win->is_floating)
+      snprintf(buf, sizeof(buf), "[%c:F]", letter);
+    else
+      snprintf(buf, sizeof(buf), "[%c]", letter);
+    return strdup(buf);
+  }
+
+  /* Index 1..99: letter + index */
+  char buf[32];
+  if (win->is_floating)
+    snprintf(buf, sizeof(buf), "[%c:%d:F]", letter, idx);
+  else
+    snprintf(buf, sizeof(buf), "[%c:%d]", letter, idx);
+  return strdup(buf);
+}
+
+/* Module-level tracker, zeroed each render pass */
+static LetterTracker g_letter_tracker;
+
 static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
                       bool selected) {
   cairo_save(cr);
@@ -250,6 +406,35 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
     g_object_unref(bl);
   }
 
+  /* Workspace Badge (bottom-left pill) */
+  if (cfg && cfg->show_workspace_badge) {
+    char *ws_text = format_workspace_tag(win, &g_letter_tracker);
+
+    PangoLayout *wl = create_layout(cr, 8);
+    pango_layout_set_text(wl, ws_text, -1);
+
+    int ww, wh;
+    pango_layout_get_pixel_size(wl, &ww, &wh);
+
+    int badge_w = ww + 12;
+    int badge_h = wh + 6;
+    double wx = x + 10;
+    double wy = y + h - badge_h - 10;
+
+    /* Badge background */
+    cairo_set_source_rgba(cr, bdg_r, bdg_g, bdg_b, bdg_a);
+    draw_rounded_rect(cr, wx, wy, badge_w, badge_h, 4.0);
+    cairo_fill(cr);
+
+    /* Badge text */
+    cairo_set_source_rgba(cr, bdt_r, bdt_g, bdt_b, bdt_a);
+    cairo_move_to(cr, wx + (badge_w - ww) / 2.0, wy + (badge_h - wh) / 2.0);
+    pango_cairo_show_layout(cr, wl);
+    g_object_unref(wl);
+
+    free(ws_text);
+  }
+
   cairo_restore(cr);
 }
 
@@ -273,24 +458,128 @@ void calculate_dimensions(AppState *state, uint32_t *width, uint32_t *height) {
   if (*height <= 0) *height = 10;
 }
 
+/* --- Buffer Lifecycle Management --- */
+
+#define RENDER_BUFFER_COUNT 2
+static RenderBuffer render_buffers[RENDER_BUFFER_COUNT] = {0};
+
+/* Called by the compositor when it is done reading a buffer.
+ * We destroy the Wayland protocol objects (they're per-commit) but KEEP the
+ * backing fd + mmap alive so the next frame can reuse the same memory. */
+static void buffer_release(void *data, struct wl_buffer *wl_buffer) {
+  RenderBuffer *buf = (RenderBuffer *)data;
+  (void)wl_buffer;
+
+  if (buf->buffer) {
+    wl_buffer_destroy(buf->buffer);
+    buf->buffer = NULL;
+  }
+  if (buf->pool) {
+    wl_shm_pool_destroy(buf->pool);
+    buf->pool = NULL;
+  }
+  /* fd, data, size, alloc_width, alloc_height are PRESERVED for reuse */
+  buf->in_use = false;
+}
+
+static const struct wl_buffer_listener buffer_listener = {
+    .release = buffer_release,
+};
+
+/* Find a free buffer slot, or NULL if all are in-flight */
+static RenderBuffer *acquire_buffer(uint32_t phys_w, uint32_t phys_h,
+                                     int stride) {
+  int needed_size = stride * (int)phys_h;
+
+  for (int i = 0; i < RENDER_BUFFER_COUNT; i++) {
+    RenderBuffer *buf = &render_buffers[i];
+    if (buf->in_use)
+      continue;
+
+    /* Check if existing allocation matches the requested dimensions */
+    if (buf->data && buf->alloc_width == phys_w &&
+        buf->alloc_height == phys_h) {
+      /* Hot path: reuse existing mmap'd region — zero syscalls */
+      return buf;
+    }
+
+    /* Dimensions changed (or first use): tear down old allocation */
+    if (buf->data) {
+      munmap(buf->data, buf->size);
+      buf->data = NULL;
+    }
+    if (buf->fd >= 0) {
+      close(buf->fd);
+      buf->fd = -1;
+    }
+
+    /* Allocate fresh backing memory */
+    int fd = create_shm_file(needed_size);
+    if (fd < 0)
+      return NULL;
+
+    void *data = mmap(NULL, needed_size, PROT_READ | PROT_WRITE,
+                      MAP_SHARED, fd, 0);
+    if (data == MAP_FAILED) {
+      close(fd);
+      return NULL;
+    }
+
+    buf->fd = fd;
+    buf->data = data;
+    buf->size = needed_size;
+    buf->alloc_width = phys_w;
+    buf->alloc_height = phys_h;
+    return buf;
+  }
+  return NULL;
+}
+
+/* Force-free all buffer slots (for shutdown) */
+void render_cleanup_buffers(void) {
+  for (int i = 0; i < RENDER_BUFFER_COUNT; i++) {
+    RenderBuffer *buf = &render_buffers[i];
+    if (buf->buffer) {
+      wl_buffer_destroy(buf->buffer);
+      buf->buffer = NULL;
+    }
+    if (buf->pool) {
+      wl_shm_pool_destroy(buf->pool);
+      buf->pool = NULL;
+    }
+    if (buf->data) {
+      munmap(buf->data, buf->size);
+      buf->data = NULL;
+    }
+    if (buf->fd >= 0) {
+      close(buf->fd);
+      buf->fd = -1;
+    }
+    buf->in_use = false;
+    buf->alloc_width = 0;
+    buf->alloc_height = 0;
+  }
+}
+
 void render_ui(AppState *state, uint32_t logical_width, uint32_t logical_height,
                int scale) {
   uint32_t phys_width = logical_width * scale;
   uint32_t phys_height = logical_height * scale;
 
   int stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, phys_width);
-  int size = stride * phys_height;
-  int fd = create_shm_file(size);
-  if (fd < 0)
-    return;
 
-  void *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if (data == MAP_FAILED) {
-    close(fd);
+  /* Acquire a free buffer slot (reuses persistent mmap when possible) */
+  RenderBuffer *rbuf = acquire_buffer(phys_width, phys_height, stride);
+  if (!rbuf) {
+    LOG("All render buffers in use or allocation failed, skipping frame");
     return;
   }
 
-  /* CRITICAL FIX 1: Zero buffer */
+  void *data = rbuf->data;
+  int size = rbuf->size;
+  int fd = rbuf->fd;
+
+  /* Clear pixel data */
   memset(data, 0, size);
 
   cairo_surface_t *surf = cairo_image_surface_create_for_data(
@@ -363,6 +652,9 @@ void render_ui(AppState *state, uint32_t logical_width, uint32_t logical_height,
     if (start_y < pad)
       start_y = pad;
 
+    /* Zero the workspace letter tracker for this render pass */
+    letter_tracker_init(&g_letter_tracker);
+
     for (int i = 0; i < state->count; i++) {
       int r = i / max_cols;
       int c = i % max_cols;
@@ -372,19 +664,30 @@ void render_ui(AppState *state, uint32_t logical_width, uint32_t logical_height,
     }
   }
 
-  /* Wayland Commit */
+  /* --- Wayland Commit with proper buffer lifecycle --- */
   struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
   struct wl_buffer *buffer = wl_shm_pool_create_buffer(
       pool, 0, phys_width, phys_height, stride, WL_SHM_FORMAT_ARGB8888);
+
+  /* Populate the RenderBuffer slot BEFORE committing */
+  rbuf->buffer = buffer;
+  rbuf->pool = pool;
+  rbuf->data = data;
+  rbuf->size = size;
+  rbuf->fd = fd;
+  rbuf->in_use = true;
+
+  /* Listen for the compositor's release event */
+  wl_buffer_add_listener(buffer, &buffer_listener, rbuf);
 
   wl_surface_attach(surface, buffer, 0, 0);
   wl_surface_damage_buffer(surface, 0, 0, phys_width, phys_height);
   wl_surface_commit(surface);
 
+  /* Clean up Cairo objects (these are CPU-side only, safe to free now) */
   cairo_destroy(cr);
   cairo_surface_destroy(surf);
-  wl_buffer_destroy(buffer);
-  wl_shm_pool_destroy(pool);
-  close(fd);
-  munmap(data, size);
+
+  /* NOTE: buffer, pool, fd, and data are NOT freed here.
+   * They will be freed in buffer_release() when the compositor is done. */
 }

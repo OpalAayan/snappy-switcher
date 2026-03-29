@@ -17,6 +17,7 @@
 static void set_defaults(Config *cfg) {
   cfg->mode = MODE_CONTEXT;
   cfg->follow_monitor = false;
+  cfg->show_workspace_badge = true;
   strncpy(cfg->dismiss_modifier, "alt", sizeof(cfg->dismiss_modifier) - 1);
 
   /* Default Theme Colors (0xRRGGBBAA) */
@@ -29,7 +30,6 @@ static void set_defaults(Config *cfg) {
   cfg->bundle_bg = 0x313244ff;
   cfg->badge_bg = 0x89b4faff;
   cfg->badge_text_color = 0xcdd6f4ff;
-  cfg->workspace_color = 0xcdd6f4ff;
   cfg->border_width = 2;
   cfg->card_radius = 12;
 
@@ -95,6 +95,9 @@ static void apply_value(Config *cfg, const char *section, const char *key,
     } else if (strcasecmp(key, "follow_monitor") == 0) {
       cfg->follow_monitor =
           (strcasecmp(val, "true") == 0 || strcmp(val, "1") == 0);
+    } else if (strcasecmp(key, "show_workspace_badge") == 0) {
+      cfg->show_workspace_badge =
+          (strcasecmp(val, "true") == 0 || strcmp(val, "1") == 0);
     } else if (strcasecmp(key, "dismiss_modifier") == 0) {
       strncpy(cfg->dismiss_modifier, val, sizeof(cfg->dismiss_modifier) - 1);
       cfg->dismiss_modifier[sizeof(cfg->dismiss_modifier) - 1] = '\0';
@@ -121,8 +124,6 @@ static void apply_value(Config *cfg, const char *section, const char *key,
       cfg->badge_bg = parse_hex_color(val);
     else if (strcasecmp(key, "badge_text_color") == 0)
       cfg->badge_text_color = parse_hex_color(val);
-    else if (strcasecmp(key, "workspace_color") == 0)
-      cfg->workspace_color = parse_hex_color(val);
     else if (strcasecmp(key, "border_width") == 0)
       cfg->border_width = atoi(val);
     else if (strcasecmp(key, "corner_radius") == 0)
