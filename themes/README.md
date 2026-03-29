@@ -88,7 +88,6 @@ border_color = #89b4faff
 bundle_bg = #313244ff
 badge_bg = #89b4faff
 badge_text_color = #cdd6f4ff
-workspace_color = #cdd6f4ff
 ```
 
 All colors use 8-character `#RRGGBBAA` hex codes. The last two digits control transparency (e.g., `ff` = opaque, `80` = 50%, `00` = invisible).

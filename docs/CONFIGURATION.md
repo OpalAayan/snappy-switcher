@@ -41,12 +41,12 @@ fallback = hicolor
   init: {
     'theme': 'base',
     'themeVariables': {
-      'primaryColor': '#e0e7ff',
+      'primaryColor': '#a8b3dc',
       'primaryTextColor': '#0f172a',
       'primaryBorderColor': '#4338ca',
-      'lineColor': '#6366f1',
-      'secondaryColor': '#f5d0fe',
-      'tertiaryColor': '#bae6fd'
+      'lineColor': '#101274',
+      'secondaryColor': '#b953d2',
+      'tertiaryColor': '#61b3e0'
     }
   }
 }%%
@@ -107,6 +107,8 @@ flowchart LR
 |-----|--------|---------|-------------|
 | `mode` | `overview`, `context` | `context` | Window grouping mode |
 | `dismiss_modifier` | `alt`, `super`, `shift`, `control`, or comma-separated | `alt` | Modifier(s) that dismiss the switcher when released. Must match your Hyprland keybinding. |
+| `show_workspace_badge` | `true`, `false` | `true` | Show workspace indicator badge on each card |
+| `follow_monitor` | `true`, `false` | `false` | Panel follows the focused monitor |
 
 ### Mode Comparison
 
@@ -120,11 +122,36 @@ flowchart LR
 mode = context  # Enable intelligent grouping
 ```
 
+### 🏷️ Workspace Badge
+
+When `show_workspace_badge = true` (the default), each card displays a small pill-shaped tag in its bottom-left corner that tells you **which workspace the window lives on** at a glance.
+
+**How it works under the hood:**
+
+The renderer inspects each window's `workspace_id` and `workspace_name` (pulled from Hyprland's IPC) and formats a short tag using these rules:
+
+| Workspace Type | Tag Format | Example | When |
+|----------------|------------|---------|------|
+| **Numbered** (standard) | `[N]` | `[3]` | Workspace name is just a number |
+| **Numbered + Floating** | `[F:N]` | `[F:3]` | Floating window on workspace 3 |
+| **Named** (1st occurrence) | `[L]` | `[M]` | First named workspace starting with "M" |
+| **Named** (2nd+ occurrence) | `[L:n]` | `[M:1]` | Second named workspace starting with "M" |
+| **Named + Floating** | `[L:F]` | `[M:F]` | Floating window on a named workspace |
+| **Special** | `[S]` | `[S]` | Hyprland special workspace (scratchpad, etc.) |
+| **Special + Floating** | `[S:F]` | `[S:F]` | Floating window on a special workspace |
+
+> 💡 **In plain English:** The badge shows a compact label so you always know *where* a window belongs ~ a number for standard workspaces, a letter for named ones, and `S` for special/scratchpad workspaces. If the window is floating, it gets an extra `F:` prefix so you can tell it apart from tiled windows at a glance.
+
+```ini
+[general]
+show_workspace_badge = true   # Toggle badge visibility
+```
+
 ---
 
 ## 🎨 [theme] — Colors & Styling
 
-All colors use hex format: `#RRGGBB`
+All colors use hex format: `#RRGGBB` or `#RRGGBBAA` (with alpha transparency)
 
 ```mermaid
 graph TB
@@ -148,12 +175,15 @@ graph TB
 | Key | Default | Description |
 |-----|---------|-------------|
 | `name` | `snappy-slate.ini` | Theme file to load |
-| `background` | `#11111b` | Main overlay background |
-| `card_bg` | `#1e1e2e` | Card background color |
-| `card_selected` | `#2a2a3c` | Selected card background |
-| `border_color` | `#ca9ee6` | Selection border (accent) |
-| `text_color` | `#cdd6f4` | Primary text color |
-| `subtext_color` | `#6c7086` | Secondary/dimmed text |
+| `background` | `#1e1e2eff` | Main overlay background |
+| `card_bg` | `#313244ff` | Card background color |
+| `card_selected` | `#45475aff` | Selected card background |
+| `border_color` | `#89b4faff` | Selection border (accent) |
+| `text_color` | `#cdd6f4ff` | Primary text color |
+| `subtext_color` | `#a6adc8ff` | Secondary/dimmed text |
+| `bundle_bg` | `#313244ff` | Context-mode stacked card background |
+| `badge_bg` | `#89b4faff` | Group count & workspace badge background |
+| `badge_text_color` | `#cdd6f4ff` | Badge text color |
 
 ### Border & Corner Options
 
@@ -167,12 +197,15 @@ graph TB
 name = catppuccin-mocha.ini
 
 # Override specific colors (optional)
-background = #11111b
-card_bg = #1e1e2e
-card_selected = #2a2a3c
-border_color = #ca9ee6
-text_color = #cdd6f4
-subtext_color = #6c7086
+background = #11111bff
+card_bg = #1e1e2eff
+card_selected = #2a2a3cff
+border_color = #ca9ee6ff
+text_color = #cdd6f4ff
+subtext_color = #6c7086ff
+bundle_bg = #1e1e2eff
+badge_bg = #89b4faff
+badge_text_color = #cdd6f4ff
 border_width = 2
 corner_radius = 12
 ```
@@ -194,6 +227,11 @@ corner_radius = 12
 <td align="center">☕</td>
 <td><code>catppuccin-latte.ini</code></td>
 <td>Catppuccin Latte (light)</td>
+</tr>
+<tr>
+<td align="center">🫐</td>
+<td><code>catppuccin-frappe.ini</code></td>
+<td>Catppuccin Frappé</td>
 </tr>
 <tr>
 <td align="center">🌌</td>
@@ -234,6 +272,21 @@ corner_radius = 12
 <td align="center">🤖</td>
 <td><code>cyberpunk.ini</code></td>
 <td>Cyberpunk</td>
+</tr>
+<tr>
+<td align="center">⚡</td>
+<td><code>stormlight.ini</code></td>
+<td>Stormlight (yellow Catppuccin-inspired)</td>
+</tr>
+<tr>
+<td align="center">🤍</td>
+<td><code>liquid-glassW.ini</code></td>
+<td>Liquid Glass White (frosted acrylic, needs blur)</td>
+</tr>
+<tr>
+<td align="center">🖤</td>
+<td><code>liquid-glassB.ini</code></td>
+<td>Liquid Glass Black (smoked glass, needs blur)</td>
 </tr>
 </table>
 
@@ -384,15 +437,19 @@ icon_letter_size = 24
 
 [general]
 mode = context
+show_workspace_badge = true
 
 [theme]
 name = catppuccin-mocha.ini
-background = #11111b
-card_bg = #1e1e2e
-card_selected = #2a2a3c
-border_color = #ca9ee6
-text_color = #cdd6f4
-subtext_color = #6c7086
+background = #11111bff
+card_bg = #1e1e2eff
+card_selected = #2a2a3cff
+border_color = #ca9ee6ff
+text_color = #cdd6f4ff
+subtext_color = #6c7086ff
+bundle_bg = #1e1e2eff
+badge_bg = #ca9ee6ff
+badge_text_color = #1e1e2eff
 border_width = 2
 corner_radius = 12
 

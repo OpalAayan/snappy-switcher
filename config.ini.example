@@ -1,6 +1,6 @@
 # ╔═══════════════════════════════════════════════════════════════════════════╗
 # ║                     SNAPPY SWITCHER CONFIGURATION                         ║
-# ║                           v2.1.3 Stable Release                           ║
+# ║                           v3.0.0 Stable Release                           ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
 #
 # This file controls all aspects of the Snappy Switcher window switcher.
@@ -22,10 +22,20 @@
 mode = context
 
 # The panel position whether to follow the focus of your monitor
-follow_monitor = false
+follow_monitor = true
+
+# Show workspace ID badge on each card (e.g. [3], [F:3] for floating)
+show_workspace_badge = true
 
 # Modifier that dismisses the switcher when released.
-# Must match your Hyprland keybinding. Examples: alt, super, alt,super
+# Examples: alt, super, shift, control
+# 
+# NOTE ON 'SUPER': If you use 'super', you can open and cycle the switcher 
+# normally (e.g., Super+Tab). However, navigating with Super + Arrow Keys 
+# may not work depending on your Wayland compositor (like Hyprland), as the 
+# compositor often intercepts Super+Arrow for its own global binds before 
+# the switcher can see them. 
+# Workaround: Use Super + Alt + Arrow, or change to dismiss_modifier = alt.
 dismiss_modifier = alt
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
@@ -35,11 +45,12 @@ dismiss_modifier = alt
 
 # Theme file to load (searched in ~/.config/snappy-switcher/themes/ first,
 # then /usr/share/snappy-switcher/themes/)
-#
+
 # Available themes:
 #   snappy-slate.ini      - Default dark theme (Catppuccin-inspired)
 #   catppuccin-mocha.ini  - Catppuccin Mocha
 #   catppuccin-latte.ini  - Catppuccin Latte (light)
+#   catppuccin-frappe.ini - Catppuccin Frappe
 #   cyberpunk.ini         - Cyberpunk theme
 #   nord.ini              - Nord color scheme
 #   nordic.ini            - Nordic color scheme
@@ -50,7 +61,7 @@ dismiss_modifier = alt
 #   tokyo-night.ini       - Tokyo Night
 #   liquid-glassW.ini     - Liquid Glass White (frosted acrylic, needs blur)
 #   liquid-glassB.ini     - Liquid Glass Black (smoked glass, needs blur)
-#
+#   stormlight.ini        - A Lighting Quick Yellow  (Catppuccin-inspired)
 name = snappy-slate.ini
 
 # Override specific theme colors here (optional)
@@ -68,11 +79,10 @@ name = snappy-slate.ini
 # bundle_bg = #313244ff        # Context-mode stacked card background
 # badge_bg = #89b4faff         # Group count badge circle
 # badge_text_color = #cdd6f4ff # Group count badge number
-# workspace_color = #cdd6f4ff  # Workspace label text
 
 # Border and corner styling
 border_width = 2
-corner_radius = 12
+corner_radius = 15
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
 # │                              LAYOUT SETTINGS                              │
@@ -80,19 +90,19 @@ corner_radius = 12
 [layout]
 
 # Card dimensions (pixels)
-card_width = 160
-card_height = 140
+card_width = 145
+card_height = 135
 
 # Spacing
 card_gap = 10
-padding = 20
+padding = 10
 
 # Grid layout
 max_cols = 5
 
 # Icon settings
-icon_size = 56
-icon_radius = 12
+icon_size = 57
+icon_radius = 15
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
 # │                              ICON SETTINGS                                │
@@ -101,10 +111,10 @@ icon_radius = 12
 
 # Icon theme name (from ~/.icons/ or /usr/share/icons/)
 # Popular themes: Papirus, Tela, Numix, Adwaita, hicolor
-theme = Tela-dracula
+theme = Adwaita
 
 # Fallback icon theme if primary theme doesn't have the icon
-fallback = Tela-circle-dracula
+fallback = hicolor
 
 # Show letter fallback when no icon is found
 # true  = Show colored circle with first letter of app name
@@ -117,8 +127,8 @@ show_letter_fallback = true
 [font]
 
 # Font family for all text
-# Examples: Sans, Inter, Roboto, JetBrainsMono Nerd Font
-family = Sans
+# Examples: Sans, Inter, Roboto, JetBrainsMono Nerd Font,  FiraCode Nerd Font etc... 
+family = Sans 
 
 # Font weight: Normal, Bold, Light, Medium, SemiBold
 weight = Bold

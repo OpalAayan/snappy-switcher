@@ -7,12 +7,12 @@
 [![License](https://img.shields.io/badge/License-GPL3-blue?style=for-the-badge&logo=gnu)](LICENSE)
 [![Language](https://img.shields.io/badge/Language-C-orange?style=for-the-badge&logo=c)](https://en.cppreference.com/w/c)
 [![Platform](https://img.shields.io/badge/Platform-Hyprland-58E1FF?style=for-the-badge&logo=wayland)](https://hyprland.org/)
-[![Version](https://img.shields.io/badge/Version-2.1.0-success?style=for-the-badge)]()
+[![Version](https://img.shields.io/badge/Version-3.0.0-success?style=for-the-badge)]()
 [![AUR](https://img.shields.io/aur/version/snappy-switcher?color=blue&label=AUR&logo=arch-linux&style=for-the-badge)](https://aur.archlinux.org/packages/snappy-switcher)
 
 <br/>
 
-<img src="assets/snappy-slate.png" alt="Snappy Switcher Showcase" width="700"/>
+<img src="assets/snappy-slate.ini.png" alt="Snappy Switcher Showcase" width="700"/>
 
 <br/>
 
@@ -29,11 +29,11 @@
 | Feature | Description |
 |---------|-------------|
 |  **Context Grouping** | Automatically groups tiled windows by workspace + app class. Your 5 terminal windows become one clean card. |
-|  **12 Themed Skins** | Ships with Catppuccin, Dracula, Nord, Tokyo Night, and more. Full `.ini` customization. |
+|  **15 Themed Skins** | Ships with Catppuccin, Dracula, Nord, Liquid Glass, Tokyo Night, and more. Full `.ini` customization. |
 |  **Native Performance** | Pure C with Wayland Layer Shell. No Electron. No lag. |
 |  **Crash Recovery** | Socket takeover protocol ensures seamless recovery if the daemon restarts. |
 |  **Polished Visuals** | Animated selection, drop shadows, rounded corners, and app badges—all Cairo-rendered. |
-|  **SVG & Flatpak Support** | Native SVG icon rendering and automatic Flatpak icon discovery. *(New in v2.1)* |
+|  **SVG & Flatpak Support** | Native SVG icon rendering and automatic Flatpak icon discovery. |
 
 ---
 
@@ -78,7 +78,7 @@ graph TB
         W5["firefox<br/>floating"]
     end
 
-    subgraph After["✨ After Context Aggregation"]
+    subgraph After["After Context Aggregation"]
 
         G1["🔲 kitty × 3<br/>workspace 1"]
         G2["🔲 firefox<br/>workspace 2"]
@@ -250,63 +250,77 @@ Press <kbd>Alt</kbd> + <kbd>Tab</kbd> to see it in action.
 
 ## 🎨 Theme Gallery
 
-> All 12 themes included out of the box. Just change one line in your config!
+> All 15 themes included out of the box. Just change one line in your config!
 
 <table>
 <tr>
 <td align="center">
-<img src="assets/snappy-slate.png" width="250"/><br/>
+<img src="assets/snappy-slate.ini.png" width="250"/><br/>
 <b>Snappy Slate</b><br/><sub>Default</sub>
 </td>
 <td align="center">
-<img src="assets/catppuccin-mocha.png" width="250"/><br/>
+<img src="assets/catppuccin-mocha.ini.png" width="250"/><br/>
 <b>Catppuccin Mocha</b>
 </td>
 <td align="center">
-<img src="assets/catppuccin-latte.png" width="250"/><br/>
+<img src="assets/catppuccin-latte.ini.png" width="250"/><br/>
 <b>Catppuccin Latte</b>
 </td>
 </tr>
 <tr>
 <td align="center">
-<img src="assets/tokyo-night.png" width="250"/><br/>
+<img src="assets/catppuccin-frappe.ini.png" width="250"/><br/>
+<b>Catppuccin Frappé</b><br/><sub>New in v3.0</sub>
+</td>
+<td align="center">
+<img src="assets/tokyo-night.ini.png" width="250"/><br/>
 <b>Tokyo Night</b>
 </td>
 <td align="center">
-<img src="assets/nord.png" width="250"/><br/>
+<img src="assets/nord.ini.png" width="250"/><br/>
 <b>Nord</b>
-</td>
-<td align="center">
-<img src="assets/nordic.png" width="250"/><br/>
-<b>Nordic</b>
 </td>
 </tr>
 <tr>
 <td align="center">
-<img src="assets/dracula.png" width="250"/><br/>
+<img src="assets/nordic.ini.png" width="250"/><br/>
+<b>Nordic</b>
+</td>
+<td align="center">
+<img src="assets/dracula.ini.png" width="250"/><br/>
 <b>Dracula</b>
 </td>
 <td align="center">
-<img src="assets/gruvbox-dark.png" width="250"/><br/>
+<img src="assets/gruvbox-dark.ini.png" width="250"/><br/>
 <b>Gruvbox Dark</b>
-</td>
-<td align="center">
-<img src="assets/rose-pine.png" width="250"/><br/>
-<b>Rosé Pine</b>
 </td>
 </tr>
 <tr>
 <td align="center">
-<img src="assets/cyberpunk.png" width="250"/><br/>
+<img src="assets/rose-pine.ini.png" width="250"/><br/>
+<b>Rosé Pine</b>
+</td>
+<td align="center">
+<img src="assets/cyberpunk.ini.png" width="250"/><br/>
 <b>Cyberpunk</b>
 </td>
 <td align="center">
-<img src="assets/grovestorm.png" width="250"/><br/>
+<img src="assets/grovestorm.ini.png" width="250"/><br/>
 <b>Grovestorm</b>
 </td>
+</tr>
+<tr>
 <td align="center">
-<img src="assets/default-fallback.png" width="250"/><br/>
-<b>Default Fallback</b>
+<img src="assets/stormlight.ini.png" width="250"/><br/>
+<b>Stormlight</b><br/><sub>New in v3.0</sub>
+</td>
+<td align="center">
+<img src="assets/liquid-glassW.ini.png" width="250"/><br/>
+<b>Liquid Glass White</b><br/><sub>New in v3.0</sub>
+</td>
+<td align="center">
+<img src="assets/liquid-glassB.ini.png" width="250"/><br/>
+<b>Liquid Glass Black</b><br/><sub>New in v3.0</sub>
 </td>
 </tr>
 </table>
@@ -358,10 +372,53 @@ family = Sans
 weight = Bold
 title_size = 10
 ```
+<summary><b>My Conf</b></summary>
+
+```ini
+
+[general]
+mode = context
+follow_monitor = true
+show_workspace_badge = true
+dismiss_modifier = alt
+[theme]
+name = stormlight.ini
+border_width = 2
+corner_radius = 15
+[layout]
+card_width = 145
+card_height = 135
+card_gap = 10
+padding = 10
+max_cols = 5
+icon_size = 57
+icon_radius = 15
+[icons]
+theme = Tela-dracula
+fallback = Tela-dracula
+show_letter_fallback = true
+[font]
+family = FiraCode Nerd Font
+weight = Bold
+title_size = 10
+icon_letter_size = 24
+```
 
 </details>
 
 📘 **[Full Configuration Documentation →](docs/CONFIGURATION.md)**
+
+## Known Limitations
+### ⚠️ Note on using `SUPER` as the dismiss modifier
+If you set `dismiss_modifier = super`, native Arrow Key navigation (Left/Right/Up/Down) while the switcher is open may fail on certain compositors like Hyprland. 
+
+**Why?** Hyprland aggressively routes `SUPER + Arrow` keystrokes to its own internal global keybindings (like `movefocus`), preventing Snappy Switcher from receiving the input. 
+
+**Workarounds:**
+1. Navigate using the trigger key (e.g., `Super + Tab` repeatedly).
+2. Use `Super + Alt + Arrow Keys` to bypass the compositor's interception.
+3. Keep the default `dismiss_modifier = alt`. 
+*(PRs welcome from any Wayland protocol wizards who know how to force Hyprland to yield these keys!)*
 
 ---
 
@@ -462,15 +519,6 @@ make clean && make
 # Run stress tests
 ./scripts/ultimate_stress_test.sh
 ```
-
----
-
-##  Roadmap (v2.5) Future Planning
-
-| Feature | Description |
-|---------|-------------|
-|  **Mouse Support** | Click window cards to switch (requires `wl_pointer` handling) |
-|  **Smart MRU** | Fix focus history so switching monitors doesn't disrupt MRU order |
 
 ---
 

@@ -26,19 +26,19 @@ The window handling follows a clear **4-stage pipeline**:
 ```mermaid
 flowchart LR
     subgraph Stage1["📡 Stage 1"]
-        F["FETCH\n━━━━━━━━━\nHyprland IPC"]
+        F["FETCH Hyprland IPC"]
     end
     
     subgraph Stage2["📊 Stage 2"]
-        S["SORT\n━━━━━━━━━\nStable MRU"]
+        S["SORT Stable MRU"]
     end
     
     subgraph Stage3["🧩 Stage 3"]
-        A["AGGREGATE\n━━━━━━━━━\nContext Mode"]
+        A["AGGREGATE Context Mode"]
     end
     
     subgraph Stage4["🎨 Stage 4"]
-        R["RENDER\n━━━━━━━━━\nCairo UI"]
+        R["RENDER Cairo UI"]
     end
 
     F --> S --> A --> R
@@ -53,7 +53,7 @@ flowchart LR
 
 ## 📡 Stage 1: Fetch (Hyprland IPC)
 
-**File**: [`src/hyprland.c`](../src/hyprland.c) → `parse_clients_json()`
+**File**: [`src/hyprland.c`](../src/hyprland.c) → `parse_clients()`
 
 ```mermaid
 sequenceDiagram
@@ -67,8 +67,7 @@ sequenceDiagram
     
     Note over D: Parse window data
 
-    rect rgb(49, 50, 68)
-        Note over D: Extract per window:<br/>• address (unique ID)<br/>• title<br/>• class (app name)<br/>• workspace.id<br/>• focusHistoryID<br/>• floating (bool)
+        Note over D: Extract per window:<br/>• address (unique ID)<br/>• title<br/>• class (app name)<br/>• workspace.id<br/>• workspace.name<br/>• focusHistoryID<br/>• floating (bool)
     end
 ```
 
@@ -80,6 +79,7 @@ sequenceDiagram
 | `title` | `string` | Window title text |
 | `class` | `string` | App class name (e.g., `kitty`, `firefox`) |
 | `workspace.id` | `int` | Workspace number |
+| `workspace.name` | `string` | Workspace name (e.g., `"1"`, `"music"`, `"special:scratchpad"`) |
 | `focusHistoryID` | `int` | MRU position (0 = most recent) |
 | `floating` | `bool` | Tiled or floating window |
 
@@ -87,7 +87,7 @@ sequenceDiagram
 
 ## 📊 Stage 2: Sort (Stable MRU)
 
-**File**: [`src/hyprland.c`](../src/hyprland.c) → `compare_by_focus_history()`
+**File**: [`src/hyprland.c`](../src/hyprland.c) → `compare_mru()`
 
 ```mermaid
 flowchart TB
@@ -128,7 +128,7 @@ return strcmp(wa->address, wb->address);  // Stable tie-breaker
 
 ## 🧩 Stage 3: Aggregate (Context Mode)
 
-**File**: [`src/hyprland.c`](../src/hyprland.c) → `aggregate_context_windows()`
+**File**: [`src/hyprland.c`](../src/hyprland.c) → `aggregate_context()`
 
 > ⚠️ **Only runs when** `config->mode == MODE_CONTEXT`
 
@@ -200,9 +200,13 @@ flowchart TB
         T --> Q{group_count > 1?}
         Q -->|Yes| ST["📚 Add Stack Effect\n(shadow cards behind)"]
         Q -->|No| SK["Skip"]
-        ST --> B["🔢 Draw Badge Pill"]
+        ST --> B["🔢 Draw Count Badge"]
         SK --> B
-        B --> SEL{Is Selected?}
+        B --> WS{show_workspace_badge?}
+        WS -->|Yes| WSB["🏷️ Draw Workspace Badge\n(bottom-left pill)"]
+        WS -->|No| SKW["Skip"]
+        WSB --> SEL{Is Selected?}
+        SKW --> SEL
         SEL -->|Yes| BO["✨ Draw Selection Border"]
         SEL -->|No| DONE["Done"]
         BO --> DONE
@@ -211,6 +215,7 @@ flowchart TB
     style G fill:#89b4fa,stroke:#1e1e2e,color:#1e1e2e
     style I fill:#a6e3a1,stroke:#1e1e2e,color:#1e1e2e
     style ST fill:#f9e2af,stroke:#1e1e2e,color:#1e1e2e
+    style WSB fill:#fab387,stroke:#1e1e2e,color:#1e1e2e
     style BO fill:#cba6f7,stroke:#1e1e2e,color:#1e1e2e
 ```
 
@@ -220,7 +225,8 @@ flowchart TB
 |---------|-------------|
 | **Grid Layout** | Dynamic columns up to `max_cols` |
 | **Stack Effect** | Shadow cards behind grouped windows |
-| **Badge Pill** | Bottom-right count badge for groups |
+| **Count Badge** | Bottom-right circle badge for groups |
+| **Workspace Badge** | Bottom-left pill showing workspace ID, named workspace letter, or `[S]` for special workspaces. Floating windows get an `F:` prefix. |
 | **Selection Glow** | Highlighted border on selected card |
 
 ---
@@ -238,6 +244,7 @@ classDiagram
         +char* title
         +char* class_name
         +int workspace_id
+        +char* workspace_name
         +int focus_history_id
         +bool is_active
         +bool is_floating
@@ -253,6 +260,7 @@ typedef struct {
   char *title;          // Window title
   char *class_name;     // App class name
   int workspace_id;     // Workspace number
+  char *workspace_name; // Workspace name (e.g. "1", "music", "special:scratchpad")
   int focus_history_id; // MRU position
   bool is_active;       // Currently focused?
   bool is_floating;     // Floating or tiled?
