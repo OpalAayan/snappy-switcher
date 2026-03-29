@@ -7,18 +7,22 @@ This directory contains color themes for Snappy Switcher.
 | Theme | Description |
 |-------|-------------|
 | `snappy-slate.ini` | Default dark theme (Catppuccin-inspired) |
-| `catppuccin-mocha.ini` | Catppuccin Mocha |
+| `catppuccin-mocha.ini` | Catppuccin Mocha (Cool Blue) |
 | `catppuccin-latte.ini` | Catppuccin Latte (light theme) |
+| `catppuccin-frappe.ini` | Catppuccin Frappe (Mint Green) |
 | `nord.ini` | Nord color scheme |
 | `nordic.ini` | Nordic (Arctic Aurora) |
 | `dracula.ini` | Dracula theme |
-| `gruvbox-dark.ini` | Gruvbox Dark |
+| `gruvbox-dark.ini` | Gruvbox Dark (Orange Dark) |
 | `grovestorm.ini` | Grovestorm (Everforest × Gruvbox) |
 | `tokyo-night.ini` | Tokyo Night |
-| `cyberpunk.ini` | Cyberpunk 2077 |
+| `cyberpunk.ini` | Cyberpunk 2077 (Neon) |
 | `rose-pine.ini` | Rosé Pine |
+| `stormlight.ini` | Stormlight (Clam Yellow) |
 | `liquid-glassW.ini` | Liquid Glass — White frosted acrylic (requires blur) |
 | `liquid-glassB.ini` | Liquid Glass — Black smoked glass (requires blur) |
+
+
 
 ## How to Use
 
@@ -44,10 +48,20 @@ The Liquid Glass themes render as translucent overlays and require compositor bl
 name = liquid-glassW.ini
 ```
 
-```conf
+```ini
 # In ~/.config/hypr/hyprland.conf
 layerrule = blur, snappy-switcher
 layerrule = ignorealpha 0.01, snappy-switcher
+```
+```ini
+# Just a diff Syntax
+layerrule {
+  name = snappy-switcher-blur
+  match:namespace = snappy-switcher
+  blur = on
+  ignore_alpha = 0.01
+}
+
 ```
 
 ## Theme Locations
@@ -90,3 +104,4 @@ You can override specific colors in your `config.ini` after setting a theme:
 name = nord.ini
 border_color = #ff0000ff  # Override just the border
 ```
+
