@@ -68,7 +68,7 @@ sequenceDiagram
     Note over D: Parse window data
 
         Note over D: Extract per window:<br/>• address (unique ID)<br/>• title<br/>• class (app name)<br/>• workspace.id<br/>• workspace.name<br/>• focusHistoryID<br/>• floating (bool)
-    end
+    
 ```
 
 **Extracted Fields:**
