@@ -382,6 +382,7 @@ mode = context
 follow_monitor = true
 show_workspace_badge = true
 dismiss_modifier = alt
+sticky_mode = false
 [theme]
 name = stormlight.ini
 border_width = 2
