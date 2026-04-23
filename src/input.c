@@ -8,9 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <strings.h>
 #include <xkbcommon/xkbcommon.h>
 
 #define LOG(fmt, ...) fprintf(stderr, "[Input] " fmt "\n", ##__VA_ARGS__)
@@ -265,7 +265,18 @@ static void keyboard_modifiers(void *data, struct wl_keyboard *keyboard,
 
   if (ignore_first_release) {
     ignore_first_release = false;
-    mod_was_held = any_held_now;
+    if (any_held_now) {
+      /* Scenario A (Normal): User is still holding Alt.
+       * We safely clear the flag and wait for the actual physical release. */
+      mod_was_held = true;
+    } else {
+      /* Scenario B (Rapid Tap Race Condition):
+       * User already released Alt while the main thread was busy rendering.
+       * Do not ignore this release! Execute the switch immediately. */
+      mod_was_held = false;
+      if (on_alt_release)
+        on_alt_release();
+    }
     return;
   }
 
