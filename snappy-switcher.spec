@@ -2,7 +2,7 @@
 # For Fedora Copr / RHEL / openSUSE
 
 Name:           snappy-switcher
-Version:        3.0.0
+Version:        3.1.0
 Release:        1%{?dist}
 Summary:        A fast, animated Alt+Tab window switcher for Hyprland
 
@@ -95,6 +95,9 @@ install -Dpm 644 snappy-switcher.service %{buildroot}%{_userunitdir}/snappy-swit
 %{_userunitdir}/snappy-switcher.service
 
 %changelog
+* Thu Apr 23 2026 Aruz <YougurtMyFace@proton.me> - 3.1.0-1
+- Added Sticky Mode (active window focus retention)
+- Fixed Wayland rapid input race condition (stuck panel bug)
 * Wed Apr 01 2026 Opal Aayan <YougurtMyFace@proton.me> - 3.0.0-1
 - Major release: Bump version to 3.0.0
 - Fixed issues made snappier
