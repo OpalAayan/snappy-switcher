@@ -49,6 +49,7 @@ typedef struct {
   bool follow_monitor;
   bool show_workspace_badge;
   ViewMode mode;
+  bool sticky_mode;
 
   /* Dismiss modifier: which modifier release hides the switcher (e.g. alt, super) */
   char dismiss_modifier[64];

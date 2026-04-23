@@ -18,6 +18,7 @@ static void set_defaults(Config *cfg) {
   cfg->mode = MODE_CONTEXT;
   cfg->follow_monitor = false;
   cfg->show_workspace_badge = true;
+  cfg->sticky_mode = false;
   strncpy(cfg->dismiss_modifier, "alt", sizeof(cfg->dismiss_modifier) - 1);
 
   /* Default Theme Colors (0xRRGGBBAA) */
@@ -101,6 +102,8 @@ static void apply_value(Config *cfg, const char *section, const char *key,
     } else if (strcasecmp(key, "dismiss_modifier") == 0) {
       strncpy(cfg->dismiss_modifier, val, sizeof(cfg->dismiss_modifier) - 1);
       cfg->dismiss_modifier[sizeof(cfg->dismiss_modifier) - 1] = '\0';
+    } else if (strcasecmp(key, "sticky_mode") == 0) {
+      cfg->sticky_mode = (strcasecmp(val, "true") == 0 || strcmp(val, "1") == 0);
     }
   }
   /* Colors (from theme or manual override) */

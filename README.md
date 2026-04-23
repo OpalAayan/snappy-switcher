@@ -29,6 +29,7 @@
 | Feature | Description |
 |---------|-------------|
 |  **Context Grouping** | Automatically groups tiled windows by workspace + app class. Your 5 terminal windows become one clean card. |
+|  **Sticky Mode** | Configurable active-window focus retention. Press Alt+Tab to open without immediately losing focus. |
 |  **15 Themed Skins** | Ships with Catppuccin, Dracula, Nord, Liquid Glass, Tokyo Night, and more. Full `.ini` customization. |
 |  **Native Performance** | Pure C with Wayland Layer Shell. No Electron. No lag. |
 |  **Crash Recovery** | Socket takeover protocol ensures seamless recovery if the daemon restarts. |

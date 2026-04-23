@@ -368,6 +368,12 @@ flowchart TB
 | `select` | Confirm current selection |
 | `quit` | Stop the daemon |
 
+### Navigation & Initial Jump Logic
+
+When the daemon receives a `next` or `prev` command while hidden, it opens the UI and calculates the initial starting index:
+- By default (legacy behavior), the daemon skips index `0` (the active window) and hard-jumps to index `1` to facilitate rapid switching.
+- If `sticky_mode` is enabled in the configuration, the daemon bypasses this jump and begins navigation strictly at index `0`. Post-open navigation mathematics (`(index + dir) % count`) naturally handle routing from either starting point.
+
 ---
 
 ## 📁 File Overview

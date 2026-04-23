@@ -27,6 +27,11 @@ follow_monitor = true
 # Show workspace ID badge on each card (e.g. [3], [F:3] for floating)
 show_workspace_badge = true
 
+# Sticky Mode: Retain focus on the currently active window when opening the switcher
+# true  = Open switcher but keep current window selected (index 0)
+# false = Immediately jump to the previous window (index 1)
+sticky_mode = false
+
 # Modifier that dismisses the switcher when released.
 # Examples: alt, super, shift, control
 # 

@@ -109,6 +109,7 @@ flowchart LR
 | `dismiss_modifier` | `alt`, `super`, `shift`, `control`, or comma-separated | `alt` | Modifier(s) that dismiss the switcher when released. Must match your Hyprland keybinding. |
 | `show_workspace_badge` | `true`, `false` | `true` | Show workspace indicator badge on each card |
 | `follow_monitor` | `true`, `false` | `false` | Panel follows the focused monitor |
+| `sticky_mode` | `true`, `false` | `false` | When true, opening the switcher retains focus on the currently active window instead of immediately jumping to the previous window. |
 
 ### Mode Comparison
 

@@ -306,7 +306,11 @@ static void show_switcher(void) {
     return;
   }
 
-  app_state.selected_index = (app_state.count > 1) ? 1 : 0;
+  if (config && config->sticky_mode) {
+    app_state.selected_index = 0;
+  } else {
+    app_state.selected_index = (app_state.count > 1) ? 1 : 0;
+  }
 
   calculate_dimensions(&app_state, &app_state.width, &app_state.height);
   int max_cols = config ? config->max_cols : 5;
