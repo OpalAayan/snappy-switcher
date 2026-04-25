@@ -18,6 +18,13 @@
 
 static char *get_socket_path(void);
 
+typedef struct {
+  bool has_current_workspace_id;
+  bool has_current_monitor_id;
+  int current_workspace_id;
+  int current_monitor_id;
+} FilterTarget;
+
 int hyprland_backend_init(void) {
   /* Hyprland backend doesn't need special initialization */
   /* Just check if we can connect */
@@ -189,8 +196,150 @@ static char *hyprland_request(const char *cmd) {
   return resp;
 }
 
+static void filter_target_init(FilterTarget *target) {
+  target->has_current_workspace_id = false;
+  target->has_current_monitor_id = false;
+  target->current_workspace_id = -1;
+  target->current_monitor_id = -1;
+}
+
+static int query_focused_monitor_id(int *monitor_id) {
+  char *json = hyprland_request("j/monitors");
+  if (!json)
+    return -1;
+
+  struct json_object *root = json_tokener_parse(json);
+  free(json);
+  if (!root || !json_object_is_type(root, json_type_array)) {
+    if (root)
+      json_object_put(root);
+    return -1;
+  }
+
+  int result = -1;
+  size_t len = json_object_array_length(root);
+  for (size_t i = 0; i < len; i++) {
+    struct json_object *obj = json_object_array_get_idx(root, i);
+    struct json_object *focused, *id;
+
+    if (!json_object_object_get_ex(obj, "focused", &focused) ||
+        !json_object_get_boolean(focused))
+      continue;
+    if (!json_object_object_get_ex(obj, "id", &id))
+      continue;
+
+    *monitor_id = json_object_get_int(id);
+    result = 0;
+    break;
+  }
+
+  json_object_put(root);
+  return result;
+}
+
+static int query_filter_target(FilterTarget *target) {
+  filter_target_init(target);
+
+  char *json = hyprland_request("j/activeworkspace");
+  if (!json)
+    return -1;
+
+  struct json_object *root = json_tokener_parse(json);
+  free(json);
+  if (!root || !json_object_is_type(root, json_type_object)) {
+    if (root)
+      json_object_put(root);
+    return -1;
+  }
+
+  struct json_object *workspace_id, *monitor_id;
+  if (json_object_object_get_ex(root, "id", &workspace_id)) {
+    target->current_workspace_id = json_object_get_int(workspace_id);
+    target->has_current_workspace_id = true;
+  }
+  if (json_object_object_get_ex(root, "monitorID", &monitor_id)) {
+    target->current_monitor_id = json_object_get_int(monitor_id);
+    target->has_current_monitor_id = true;
+  }
+
+  json_object_put(root);
+
+  if (!target->has_current_monitor_id) {
+    target->has_current_monitor_id =
+        (query_focused_monitor_id(&target->current_monitor_id) == 0);
+  }
+
+  return (target->has_current_workspace_id || target->has_current_monitor_id)
+             ? 0
+             : -1;
+}
+
+static bool rule_uses_current(const WindowFilterRule *rule) {
+  return rule->value_kind == WINDOW_FILTER_VALUE_CURRENT;
+}
+
+static bool config_filter_uses_current(const Config *cfg) {
+  if (!cfg)
+    return false;
+
+  for (int i = 0; i < cfg->filter_rule_count; i++) {
+    if (rule_uses_current(&cfg->filter_rules[i]))
+      return true;
+  }
+
+  return false;
+}
+
+static bool rule_matches_client(const WindowFilterRule *rule,
+                                const FilterTarget *target, int workspace_id,
+                                int monitor_id) {
+  int actual = rule->field == WINDOW_FILTER_WORKSPACE ? workspace_id : monitor_id;
+  int expected = rule->id;
+
+  if (rule->value_kind == WINDOW_FILTER_VALUE_CURRENT) {
+    if (rule->field == WINDOW_FILTER_WORKSPACE) {
+      if (!target || !target->has_current_workspace_id)
+        return false;
+      expected = target->current_workspace_id;
+    } else {
+      if (!target || !target->has_current_monitor_id)
+        return false;
+      expected = target->current_monitor_id;
+    }
+  }
+
+  return actual == expected;
+}
+
+static bool client_matches_filter(int workspace_id, int monitor_id,
+                                  const Config *cfg,
+                                  const FilterTarget *target) {
+  if (!cfg || cfg->filter_rule_count <= 0)
+    return true;
+
+  bool has_include_rule = false;
+  bool include_matched = false;
+
+  for (int i = 0; i < cfg->filter_rule_count; i++) {
+    const WindowFilterRule *rule = &cfg->filter_rules[i];
+    bool matched = rule_matches_client(rule, target, workspace_id, monitor_id);
+
+    if (rule->exclude && matched)
+      return false;
+
+    if (!rule->exclude) {
+      has_include_rule = true;
+      if (matched)
+        include_matched = true;
+    }
+  }
+
+  return !has_include_rule || include_matched;
+}
+
 /* --- JSON Parsing --- */
-static int parse_clients(const char *json_str, AppState *state) {
+static int parse_clients(const char *json_str, AppState *state,
+                         const Config *cfg, const FilterTarget *target) {
   struct json_object *root = json_tokener_parse(json_str);
   if (!root || !json_object_is_type(root, json_type_array)) {
     if (root)
@@ -201,7 +350,8 @@ static int parse_clients(const char *json_str, AppState *state) {
   size_t len = json_object_array_length(root);
   for (size_t i = 0; i < len; i++) {
     struct json_object *obj = json_object_array_get_idx(root, i);
-    struct json_object *ws_obj, *ws_id, *ws_name, *addr, *title, *cls, *focus, *floating;
+    struct json_object *ws_obj, *ws_id, *ws_name, *addr, *title, *cls, *focus,
+        *floating, *monitor;
 
     if (!json_object_object_get_ex(obj, "workspace", &ws_obj))
       continue;
@@ -209,7 +359,12 @@ static int parse_clients(const char *json_str, AppState *state) {
       continue;
 
     int wid = json_object_get_int(ws_id);
-     if (wid == -1) 
+
+    int mid = -1;
+    if (json_object_object_get_ex(obj, "monitor", &monitor))
+      mid = json_object_get_int(monitor);
+
+    if (!client_matches_filter(wid, mid, cfg, target))
       continue;
 
     json_object_object_get_ex(ws_obj, "name", &ws_name);
@@ -305,7 +460,15 @@ int update_window_list(AppState *state, Config *cfg) {
   if (!json)
     return -1;
 
-  if (parse_clients(json, state) < 0) {
+  FilterTarget target;
+  filter_target_init(&target);
+  const Config *filter_cfg = cfg;
+  if (config_filter_uses_current(cfg) && query_filter_target(&target) < 0) {
+    LOG("Failed to resolve current filter target (showing all windows)");
+    filter_cfg = NULL;
+  }
+
+  if (parse_clients(json, state, filter_cfg, &target) < 0) {
     free(json);
     return -1;
   }

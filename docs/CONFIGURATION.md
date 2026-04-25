@@ -23,6 +23,7 @@
 ```ini
 [general]
 mode = context
+filter = !workspace:-1
 
 [theme]
 name = catppuccin-mocha.ini
@@ -54,6 +55,7 @@ mindmap
   root((config.ini))
     general
       mode
+      filter
     theme
       colors
       borders
@@ -106,6 +108,7 @@ flowchart LR
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
 | `mode` | `overview`, `context` | `context` | Window grouping mode |
+| `filter` | Filter expression | `!workspace:-1` | Optional window scope expression. Include rules select windows; exclude rules prefixed with `!` always win. |
 | `dismiss_modifier` | `alt`, `super`, `shift`, `control`, or comma-separated | `alt` | Modifier(s) that dismiss the switcher when released. Must match your Hyprland keybinding. |
 | `show_workspace_badge` | `true`, `false` | `true` | Show workspace indicator badge on each card |
 | `follow_monitor` | `true`, `false` | `false` | Panel follows the focused monitor |
@@ -122,6 +125,25 @@ flowchart LR
 [general]
 mode = context  # Enable intelligent grouping
 ```
+
+### Window Filter
+
+```ini
+[general]
+filter = workspace:current
+```
+
+| Filter | Behavior |
+|--------|----------|
+| `none` | Do not filter windows |
+| `!workspace:-1` | Exclude special/scratchpad workspace windows |
+| `workspace:current` | Show only windows on the currently active workspace |
+| `monitor:current` | Show only windows assigned to the currently focused monitor |
+| `workspace:2` | Show only windows on workspace 2 |
+| `monitor:1` | Show only windows on monitor 1 |
+| `!workspace:-1,workspace:current` | Show current workspace windows, excluding special/scratchpad windows |
+
+Rules are comma-separated. Positive rules are OR'ed together. Exclude rules start with `!` and always override positive matches.
 
 ### 🏷️ Workspace Badge
 
@@ -438,6 +460,7 @@ icon_letter_size = 24
 
 [general]
 mode = context
+filter = !workspace:-1
 show_workspace_badge = true
 
 [theme]

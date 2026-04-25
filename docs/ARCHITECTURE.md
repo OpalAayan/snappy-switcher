@@ -67,7 +67,7 @@ sequenceDiagram
     
     Note over D: Parse window data
 
-        Note over D: Extract per window:<br/>• address (unique ID)<br/>• title<br/>• class (app name)<br/>• workspace.id<br/>• workspace.name<br/>• focusHistoryID<br/>• floating (bool)
+        Note over D: Extract per window:<br/>• address (unique ID)<br/>• title<br/>• class (app name)<br/>• workspace.id<br/>• workspace.name<br/>• monitor<br/>• focusHistoryID<br/>• floating (bool)
     
 ```
 
@@ -80,8 +80,11 @@ sequenceDiagram
 | `class` | `string` | App class name (e.g., `kitty`, `firefox`) |
 | `workspace.id` | `int` | Workspace number |
 | `workspace.name` | `string` | Workspace name (e.g., `"1"`, `"music"`, `"special:scratchpad"`) |
+| `monitor` | `int` | Hyprland monitor ID |
 | `focusHistoryID` | `int` | MRU position (0 = most recent) |
 | `floating` | `bool` | Tiled or floating window |
+
+If `filter` uses a `current` value, the backend first reads `j/activeworkspace` and keeps only matching clients before sorting and context aggregation. The default `filter = !workspace:-1` preserves upstream behavior by excluding special/scratchpad workspace windows.
 
 ---
 
@@ -274,11 +277,13 @@ typedef struct {
 
 ```c
 typedef enum { MODE_OVERVIEW, MODE_CONTEXT } ViewMode;
+typedef enum { WINDOW_FILTER_WORKSPACE, WINDOW_FILTER_MONITOR } WindowFilterField;
 
 typedef struct {
-  ViewMode mode;        // Overview or Context
-  int max_cols;         // Grid column limit
-  char icon_theme[64];  // Icon theme name
+  ViewMode mode;                  // Overview or Context
+  WindowFilterRule filter_rules[]; // workspace/monitor include and exclude rules
+  int max_cols;                   // Grid column limit
+  char icon_theme[64];            // Icon theme name
   // ... colors, dimensions
 } Config;
 ```
