@@ -10,6 +10,27 @@ typedef enum {
   MODE_OVERVIEW, /* Show all windows individually */
   MODE_CONTEXT   /* Group tiled windows by workspace + app class */
 } ViewMode;
+
+/* Window filter expression */
+#define WINDOW_FILTER_MAX_RULES 16
+
+typedef enum {
+  WINDOW_FILTER_WORKSPACE,
+  WINDOW_FILTER_MONITOR
+} WindowFilterField;
+
+typedef enum {
+  WINDOW_FILTER_VALUE_ID,
+  WINDOW_FILTER_VALUE_CURRENT
+} WindowFilterValueKind;
+
+typedef struct {
+  bool exclude;                    /* true for !workspace:-1 */
+  WindowFilterField field;         /* workspace or monitor */
+  WindowFilterValueKind value_kind; /* numeric id or current */
+  int id;                          /* used when value_kind is ID */
+} WindowFilterRule;
+
 /* Theme configuration */
 typedef struct {
   /* Colors (0xRRGGBBAA) */
@@ -49,6 +70,8 @@ typedef struct {
   bool follow_monitor;
   bool show_workspace_badge;
   ViewMode mode;
+  WindowFilterRule filter_rules[WINDOW_FILTER_MAX_RULES];
+  int filter_rule_count;
   bool sticky_mode;
 
   /* Dismiss modifier: which modifier release hides the switcher (e.g. alt, super) */

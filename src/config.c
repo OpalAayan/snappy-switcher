@@ -16,6 +16,11 @@
 /* --- Defaults ("Snappy Slate" Theme) --- */
 static void set_defaults(Config *cfg) {
   cfg->mode = MODE_CONTEXT;
+  cfg->filter_rule_count = 1;
+  cfg->filter_rules[0].exclude = true;
+  cfg->filter_rules[0].field = WINDOW_FILTER_WORKSPACE;
+  cfg->filter_rules[0].value_kind = WINDOW_FILTER_VALUE_ID;
+  cfg->filter_rules[0].id = -1;
   cfg->follow_monitor = false;
   cfg->show_workspace_badge = true;
   cfg->sticky_mode = false;
@@ -83,6 +88,109 @@ static char *trim(char *str) {
   return str;
 }
 
+static bool parse_filter_rule(char *token, WindowFilterRule *rule) {
+  token = trim(token);
+  if (!token || token[0] == '\0')
+    return false;
+
+  rule->exclude = false;
+  if (token[0] == '!') {
+    rule->exclude = true;
+    token = trim(token + 1);
+  }
+
+  char *colon = strchr(token, ':');
+  if (!colon)
+    return false;
+
+  *colon = '\0';
+  char *field = trim(token);
+  char *value = trim(colon + 1);
+
+  if (strcasecmp(field, "workspace") == 0 ||
+      strcasecmp(field, "ws") == 0) {
+    rule->field = WINDOW_FILTER_WORKSPACE;
+  } else if (strcasecmp(field, "monitor") == 0 ||
+             strcasecmp(field, "mon") == 0) {
+    rule->field = WINDOW_FILTER_MONITOR;
+  } else {
+    return false;
+  }
+
+  if (strcasecmp(value, "current") == 0 || strcasecmp(value, "active") == 0) {
+    rule->value_kind = WINDOW_FILTER_VALUE_CURRENT;
+    rule->id = 0;
+    return true;
+  }
+
+  char *end = NULL;
+  long id = strtol(value, &end, 10);
+  if (end == value || *trim(end) != '\0')
+    return false;
+
+  rule->value_kind = WINDOW_FILTER_VALUE_ID;
+  rule->id = (int)id;
+  return true;
+}
+
+static void add_filter_rule(Config *cfg, WindowFilterRule rule) {
+  if (cfg->filter_rule_count >= WINDOW_FILTER_MAX_RULES) {
+    LOG("Too many filter rules; ignoring extra rule");
+    return;
+  }
+  cfg->filter_rules[cfg->filter_rule_count++] = rule;
+}
+
+static void parse_window_filter(Config *cfg, const char *val) {
+  cfg->filter_rule_count = 0;
+
+  if (!val || val[0] == '\0' || strcasecmp(val, "none") == 0 ||
+      strcasecmp(val, "off") == 0 || strcasecmp(val, "false") == 0 ||
+      strcasecmp(val, "all") == 0) {
+    return;
+  }
+
+  /* Compatibility with the older single-scope values. */
+  if (strcasecmp(val, "current_workspace") == 0 ||
+      strcasecmp(val, "current-workspace") == 0 ||
+      strcasecmp(val, "current workspace") == 0 ||
+      strcasecmp(val, "workspace") == 0) {
+    WindowFilterRule rule = {.exclude = false,
+                             .field = WINDOW_FILTER_WORKSPACE,
+                             .value_kind = WINDOW_FILTER_VALUE_CURRENT,
+                             .id = 0};
+    add_filter_rule(cfg, rule);
+    return;
+  }
+
+  if (strcasecmp(val, "current_monitor") == 0 ||
+      strcasecmp(val, "current-monitor") == 0 ||
+      strcasecmp(val, "current monitor") == 0 ||
+      strcasecmp(val, "monitor") == 0) {
+    WindowFilterRule rule = {.exclude = false,
+                             .field = WINDOW_FILTER_MONITOR,
+                             .value_kind = WINDOW_FILTER_VALUE_CURRENT,
+                             .id = 0};
+    add_filter_rule(cfg, rule);
+    return;
+  }
+
+  char buf[512];
+  strncpy(buf, val, sizeof(buf) - 1);
+  buf[sizeof(buf) - 1] = '\0';
+
+  char *saveptr = NULL;
+  for (char *token = strtok_r(buf, ",", &saveptr); token;
+       token = strtok_r(NULL, ",", &saveptr)) {
+    WindowFilterRule rule;
+    if (parse_filter_rule(token, &rule)) {
+      add_filter_rule(cfg, rule);
+    } else {
+      LOG("Unknown filter rule: %s", trim(token));
+    }
+  }
+}
+
 /* --- Parse a single key-value pair --- */
 static void apply_value(Config *cfg, const char *section, const char *key,
                         const char *val) {
@@ -93,6 +201,8 @@ static void apply_value(Config *cfg, const char *section, const char *key,
         cfg->mode = MODE_CONTEXT;
       else if (strcasecmp(val, "overview") == 0)
         cfg->mode = MODE_OVERVIEW;
+    } else if (strcasecmp(key, "filter") == 0) {
+      parse_window_filter(cfg, val);
     } else if (strcasecmp(key, "follow_monitor") == 0) {
       cfg->follow_monitor =
           (strcasecmp(val, "true") == 0 || strcmp(val, "1") == 0);
@@ -309,6 +419,8 @@ static void create_default_config(const char *path) {
   fprintf(f, "[general]\n");
   fprintf(f, "# mode = context | overview\n");
   fprintf(f, "mode = context\n\n");
+  fprintf(f, "# filter = none | workspace:current | monitor:current | !workspace:-1\n");
+  fprintf(f, "filter = !workspace:-1\n\n");
   fprintf(f, "[theme]\n");
   fprintf(f, "# Available: snappy-slate, tokyo-night, catppuccin-mocha,\n");
   fprintf(f, "#            dracula, nord, gruvbox-dark, rose-pine, etc.\n");
