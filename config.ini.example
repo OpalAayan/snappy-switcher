@@ -21,6 +21,16 @@
 #   context  = Group tiled windows by workspace+app (power user)
 mode = context
 
+# Window filter expression:
+#   none              = Do not filter windows
+#   !workspace:-1     = Exclude special/scratchpad workspace windows (default)
+#   workspace:current = Show only windows on the active workspace
+#   monitor:current   = Show only windows assigned to the focused monitor
+#   workspace:2       = Show only windows on workspace 2
+#   monitor:1         = Show only windows on monitor 1
+# Include rules are OR'ed together; exclude rules prefixed with ! always win.
+filter = !workspace:-1
+
 # The panel position whether to follow the focus of your monitor
 follow_monitor = true
 

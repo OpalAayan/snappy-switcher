@@ -349,6 +349,8 @@ name = catppuccin-mocha.ini
 # overview = Show all windows individually
 # context  = Group tiled windows by workspace + app class
 mode = context
+# none | workspace:current | monitor:current | !workspace:-1
+filter = !workspace:-1
 
 [theme]
 name = snappy-slate.ini
@@ -379,6 +381,7 @@ title_size = 10
 
 [general]
 mode = context
+filter = !workspace:-1
 follow_monitor = true
 show_workspace_badge = true
 dismiss_modifier = alt
