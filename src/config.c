@@ -31,6 +31,8 @@ static void set_defaults(Config *cfg) {
   cfg->bundle_bg = 0x313244ff;
   cfg->badge_bg = 0x89b4faff;
   cfg->badge_text_color = 0xcdd6f4ff;
+  cfg->badge_bg_selected = 0;
+  cfg->badge_text_color_selected = 0;
   cfg->border_width = 2;
   cfg->card_radius = 12;
 
@@ -127,6 +129,10 @@ static void apply_value(Config *cfg, const char *section, const char *key,
       cfg->badge_bg = parse_hex_color(val);
     else if (strcasecmp(key, "badge_text_color") == 0)
       cfg->badge_text_color = parse_hex_color(val);
+    else if (strcasecmp(key, "badge_bg_selected") == 0)
+      cfg->badge_bg_selected = parse_hex_color(val);
+    else if (strcasecmp(key, "badge_text_color_selected") == 0)
+      cfg->badge_text_color_selected = parse_hex_color(val);
     else if (strcasecmp(key, "border_width") == 0)
       cfg->border_width = atoi(val);
     else if (strcasecmp(key, "corner_radius") == 0)
@@ -368,6 +374,14 @@ Config *load_config_from(const char *path) {
     load_theme(theme_name, cfg);
 
   parse_ini_file(path, cfg, NULL, 0);
+
+  /* Fallback: If _selected colors weren't set (still 0), inherit from base colors */
+  if (cfg->badge_bg_selected == 0) {
+    cfg->badge_bg_selected = cfg->badge_bg;
+  }
+  if (cfg->badge_text_color_selected == 0) {
+    cfg->badge_text_color_selected = cfg->badge_text_color;
+  }
 
   return cfg;
 }

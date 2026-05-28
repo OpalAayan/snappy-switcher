@@ -321,6 +321,8 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
   double bnd_r, bnd_g, bnd_b, bnd_a;
   double bdg_r, bdg_g, bdg_b, bdg_a;
   double bdt_r, bdt_g, bdt_b, bdt_a;
+  double bdg_sel_r, bdg_sel_g, bdg_sel_b, bdg_sel_a;
+  double bdt_sel_r, bdt_sel_g, bdt_sel_b, bdt_sel_a;
 
   if (cfg) {
     color_to_rgba(cfg->card_bg, &bg_r, &bg_g, &bg_b, &bg_a);
@@ -330,6 +332,8 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
     color_to_rgba(cfg->bundle_bg, &bnd_r, &bnd_g, &bnd_b, &bnd_a);
     color_to_rgba(cfg->badge_bg, &bdg_r, &bdg_g, &bdg_b, &bdg_a);
     color_to_rgba(cfg->badge_text_color, &bdt_r, &bdt_g, &bdt_b, &bdt_a);
+    color_to_rgba(cfg->badge_bg_selected, &bdg_sel_r, &bdg_sel_g, &bdg_sel_b, &bdg_sel_a);
+    color_to_rgba(cfg->badge_text_color_selected, &bdt_sel_r, &bdt_sel_g, &bdt_sel_b, &bdt_sel_a);
   }
 
   int w = cfg ? cfg->card_width : 200;
@@ -389,7 +393,10 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
     double by = y + h - 24;
 
     /* Badge BG */
-    cairo_set_source_rgba(cr, bdg_r, bdg_g, bdg_b, bdg_a);
+    if (selected)
+      cairo_set_source_rgba(cr, bdg_sel_r, bdg_sel_g, bdg_sel_b, bdg_sel_a);
+    else
+      cairo_set_source_rgba(cr, bdg_r, bdg_g, bdg_b, bdg_a);
     cairo_arc(cr, bx, by, 10, 0, 2 * M_PI);
     cairo_fill(cr);
 
@@ -400,7 +407,10 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
     int bw, bh;
     pango_layout_get_pixel_size(bl, &bw, &bh);
 
-    cairo_set_source_rgba(cr, bdt_r, bdt_g, bdt_b, bdt_a);
+    if (selected)
+      cairo_set_source_rgba(cr, bdt_sel_r, bdt_sel_g, bdt_sel_b, bdt_sel_a);
+    else
+      cairo_set_source_rgba(cr, bdt_r, bdt_g, bdt_b, bdt_a);
     cairo_move_to(cr, bx - bw / 2.0, by - bh / 2.0);
     pango_cairo_show_layout(cr, bl);
     g_object_unref(bl);
@@ -422,12 +432,18 @@ static void draw_card(cairo_t *cr, WindowInfo *win, double x, double y,
     double wy = y + h - badge_h - 10;
 
     /* Badge background */
-    cairo_set_source_rgba(cr, bdg_r, bdg_g, bdg_b, bdg_a);
+    if (selected)
+      cairo_set_source_rgba(cr, bdg_sel_r, bdg_sel_g, bdg_sel_b, bdg_sel_a);
+    else
+      cairo_set_source_rgba(cr, bdg_r, bdg_g, bdg_b, bdg_a);
     draw_rounded_rect(cr, wx, wy, badge_w, badge_h, 4.0);
     cairo_fill(cr);
 
     /* Badge text */
-    cairo_set_source_rgba(cr, bdt_r, bdt_g, bdt_b, bdt_a);
+    if (selected)
+      cairo_set_source_rgba(cr, bdt_sel_r, bdt_sel_g, bdt_sel_b, bdt_sel_a);
+    else
+      cairo_set_source_rgba(cr, bdt_r, bdt_g, bdt_b, bdt_a);
     cairo_move_to(cr, wx + (badge_w - ww) / 2.0, wy + (badge_h - wh) / 2.0);
     pango_cairo_show_layout(cr, wl);
     g_object_unref(wl);
