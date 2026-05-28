@@ -185,6 +185,8 @@ graph TB
 | `bundle_bg` | `#313244ff` | Context-mode stacked card background |
 | `badge_bg` | `#89b4faff` | Group count & workspace badge background |
 | `badge_text_color` | `#cdd6f4ff` | Badge text color |
+| `badge_bg_selected` | `#89b4faff` | Badge background for selected card |
+| `badge_text_color_selected` | `#cdd6f4ff` | Badge text for selected card |
 
 ### Border & Corner Options
 
@@ -192,6 +194,28 @@ graph TB
 |-----|---------|-------------|
 | `border_width` | `2` | Border thickness (px) |
 | `corner_radius` | `12` | Rounded corner radius (px) |
+
+### Per-State Badge Colors
+
+By default, badge colors (`badge_bg` and `badge_text_color`) apply to all cards. You can optionally define separate colors for the selected card's badges:
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `badge_bg_selected` | Falls back to `badge_bg` | Badge background for selected card |
+| `badge_text_color_selected` | Falls back to `badge_text_color` | Badge text for selected card |
+
+**Example use case:** Highlight the active card's workspace badge with a distinct accent color while keeping other badges neutral.
+
+```ini
+[theme]
+# Neutral badges for non-selected cards
+badge_bg = #ffffffff
+badge_text_color = #000000ff
+
+# Accent badges for selected card
+badge_bg_selected = #7f22feff
+badge_text_color_selected = #ffffffff
+```
 
 ```ini
 [theme]
@@ -207,6 +231,8 @@ subtext_color = #6c7086ff
 bundle_bg = #1e1e2eff
 badge_bg = #89b4faff
 badge_text_color = #cdd6f4ff
+badge_bg_selected = #89b4faff
+badge_text_color_selected = #cdd6f4ff
 border_width = 2
 corner_radius = 12
 ```
@@ -451,6 +477,8 @@ subtext_color = #6c7086ff
 bundle_bg = #1e1e2eff
 badge_bg = #ca9ee6ff
 badge_text_color = #1e1e2eff
+badge_bg_selected = #ca9ee6ff
+badge_text_color_selected = #1e1e2eff
 border_width = 2
 corner_radius = 12
 

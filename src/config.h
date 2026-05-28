@@ -22,6 +22,8 @@ typedef struct {
   uint32_t bundle_bg;
   uint32_t badge_bg;
   uint32_t badge_text_color;
+  uint32_t badge_bg_selected;
+  uint32_t badge_text_color_selected;
 
   /* Layout */
   int card_width;
