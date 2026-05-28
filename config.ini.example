@@ -84,6 +84,8 @@ name = snappy-slate.ini
 # bundle_bg = #313244ff        # Context-mode stacked card background
 # badge_bg = #89b4faff         # Group count badge circle
 # badge_text_color = #cdd6f4ff # Group count badge number
+# badge_bg_selected = #89b4faff         # Badge background for selected card
+# badge_text_color_selected = #cdd6f4ff # Badge text for selected card
 
 # Border and corner styling
 border_width = 2
