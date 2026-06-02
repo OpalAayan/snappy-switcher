@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-GPL3-blue?style=for-the-badge&logo=gnu)](LICENSE)
 [![Language](https://img.shields.io/badge/Language-C-orange?style=for-the-badge&logo=c)](https://en.cppreference.com/w/c)
 [![Platform](https://img.shields.io/badge/Platform-Hyprland-58E1FF?style=for-the-badge&logo=wayland)](https://hyprland.org/)
-[![Version](https://img.shields.io/badge/Version-3.3.0-success?style=for-the-badge)]()
+[![Version](https://img.shields.io/badge/Version-4.0.0-success?style=for-the-badge)]()
 [![AUR](https://img.shields.io/aur/version/snappy-switcher?color=blue&label=AUR&logo=arch-linux&style=for-the-badge)](https://aur.archlinux.org/packages/snappy-switcher)
 
 <br/>
@@ -182,6 +182,19 @@ hl.bind("SUPER + TAB", hl.dsp.exec_cmd("snappy-switcher next --workspace --mod s
 ```
 
 > **Hyprland v0.55+** uses Lua config (`hyprland.lua`), though it will work on older version of hyprland or using (`hyprland.conf`) on **v0.55.x**
+
+### For Hyprlang
+
+```hyprlang
+# --- (Snappy Switcher) ---
+#exec-once = snappy-wrapper 
+exec-once = snappy-switcher --daemon
+# Alt+Tab: Global window cycling
+bindd = ALT, Tab, Snappy Switcher Next, exec, snappy-switcher next --mod alt
+# Super+Tab: Workspace-local window cycling
+bindd = SUPER, Tab, Snappy Switcher Workspace Next, exec, snappy-switcher next --workspace --mod super
+```
+
 
 ### 3. Done
 
