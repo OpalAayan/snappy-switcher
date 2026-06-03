@@ -40,6 +40,18 @@
             make
           '';
 
+          postPatch = ''
+            patchShebangs scripts/
+            substituteInPlace scripts/install-config.sh \
+              --replace-fail "/usr/local" "$out"
+            substituteInPlace scripts/snappy-wrapper.sh \
+              --replace-fail "/usr/local" "$out"
+            substituteInPlace src/config.c \
+              --replace-fail "/usr/local" "$out"
+            substituteInPlace snappy-switcher.service \
+              --replace-fail "/usr/local" "$out"
+          '';
+
           installPhase = ''
             mkdir -p $out/bin
             mkdir -p $out/share/snappy-switcher/themes
