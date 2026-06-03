@@ -33,7 +33,13 @@ OBJ = $(SRC:.c=.o) src/xdg-shell-protocol.o src/wlr-layer-shell-unstable-v1-prot
 TARGET = snappy-switcher
 
 # Protocol Paths
-WAYLAND_PROTOCOLS_DIR = $(shell pkg-config --variable=pkgdatadir wayland-protocols)
+# Ask pkg-config for the path, but fallback to the standard Linux path if it fails
+WAYLAND_PROTOCOLS_DIR_PKG := $(shell pkg-config --variable=pkgdatadir wayland-protocols 2>/dev/null)
+ifeq ($(strip $(WAYLAND_PROTOCOLS_DIR_PKG)),)
+    WAYLAND_PROTOCOLS_DIR = /usr/share/wayland-protocols
+else
+    WAYLAND_PROTOCOLS_DIR = $(WAYLAND_PROTOCOLS_DIR_PKG)
+endif
 WAYLAND_SCANNER = $(shell pkg-config --variable=wayland_scanner wayland-scanner)
 XDG_SHELL_XML = $(WAYLAND_PROTOCOLS_DIR)/stable/xdg-shell/xdg-shell.xml
 LAYER_SHELL_XML = protocol/wlr-layer-shell-unstable-v1.xml
