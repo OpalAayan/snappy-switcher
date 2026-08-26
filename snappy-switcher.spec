@@ -23,14 +23,6 @@ BuildRequires:  glib2-devel
 BuildRequires:  json-c-devel
 BuildRequires:  librsvg2-devel
 
-# Runtime dependencies
-Requires:       wayland
-Requires:       cairo
-Requires:       pango
-Requires:       libxkbcommon
-Requires:       glib2
-Requires:       json-c
-Requires:       librsvg2
 
 # Recommended (not hard requirements)
 Recommends:     hyprland
