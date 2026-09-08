@@ -123,6 +123,15 @@ static void seat_capabilities(void *data, struct wl_seat *wl_seat,
     keyboard = wl_seat_get_keyboard(seat);
     wl_keyboard_add_listener(keyboard, get_keyboard_listener(), state);
     LOG("Keyboard listener attached");
+  } else if (!(caps & WL_SEAT_CAPABILITY_KEYBOARD) && keyboard) {
+    /* The seat lost its keyboard (suspend/resume, VT switch, input device
+     * hotplug). The wl_keyboard is now inert: releasing it and clearing the
+     * pointer is what lets the branch above re-acquire one when the capability
+     * comes back. Without this the daemon never receives wl_keyboard.enter
+     * again and the switcher opens but ignores every key. */
+    wl_keyboard_release(keyboard);
+    keyboard = NULL;
+    LOG("Keyboard listener released (seat lost keyboard capability)");
   }
 }
 
