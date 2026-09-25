@@ -3,19 +3,23 @@
 
 #include "input.h"
 #include "hyprland.h"
+#include "render.h"
 
 #include <fcntl.h>
+#include <linux/input-event-codes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <wayland-cursor.h>
 #include <xkbcommon/xkbcommon.h>
 
 #define LOG(fmt, ...) fprintf(stderr, "[Input] " fmt "\n", ##__VA_ARGS__)
 
 extern int output_scale;
+extern struct wl_compositor *compositor;
 
 static struct xkb_context *xkb_ctx = NULL;
 static struct xkb_keymap *xkb_keymap = NULL;
@@ -527,7 +531,214 @@ const struct wl_keyboard_listener *get_keyboard_listener(void) {
   return &keyboard_listener;
 }
 
+/* --- Pointer (mouse) input ---
+ * Hover highlights the card under the cursor; a left click (press and
+ * release on the same card) switches to it. Purely additive: the keyboard
+ * path is untouched and both can be used within the same session. */
+
+static double ptr_x = 0, ptr_y = 0;
+static int pressed_index = -1;
+
+static struct wl_cursor_theme *cursor_theme = NULL;
+static struct wl_cursor_image *cursor_image = NULL;
+static struct wl_surface *cursor_surface = NULL;
+static int cursor_scale = 0;
+
+/* Load (or reload on scale change) the cursor theme. Returns false if no
+ * cursor image is available, in which case the compositor's cursor is left
+ * as-is — clicking still works. */
+static bool cursor_load(void) {
+  if (cursor_image && cursor_scale == output_scale)
+    return true;
+
+  if (cursor_theme) {
+    wl_cursor_theme_destroy(cursor_theme);
+    cursor_theme = NULL;
+    cursor_image = NULL;
+  }
+  if (!shm || !compositor)
+    return false;
+
+  int size = 24;
+  const char *size_env = getenv("XCURSOR_SIZE");
+  if (size_env && atoi(size_env) > 0)
+    size = atoi(size_env);
+
+  cursor_theme =
+      wl_cursor_theme_load(getenv("XCURSOR_THEME"), size * output_scale, shm);
+  if (!cursor_theme) {
+    LOG("Failed to load cursor theme");
+    return false;
+  }
+
+  struct wl_cursor *cursor = wl_cursor_theme_get_cursor(cursor_theme, "left_ptr");
+  if (!cursor)
+    cursor = wl_cursor_theme_get_cursor(cursor_theme, "default");
+  if (!cursor || cursor->image_count == 0) {
+    LOG("No left_ptr/default cursor in theme");
+    return false;
+  }
+
+  if (!cursor_surface)
+    cursor_surface = wl_compositor_create_surface(compositor);
+  if (!cursor_surface)
+    return false;
+
+  cursor_image = cursor->images[0];
+  cursor_scale = output_scale;
+  wl_surface_set_buffer_scale(cursor_surface, cursor_scale);
+  wl_surface_attach(cursor_surface, wl_cursor_image_get_buffer(cursor_image),
+                    0, 0);
+  wl_surface_damage_buffer(cursor_surface, 0, 0, cursor_image->width,
+                           cursor_image->height);
+  wl_surface_commit(cursor_surface);
+  return true;
+}
+
+static void pointer_enter(void *data, struct wl_pointer *pointer,
+                          uint32_t serial, struct wl_surface *surf,
+                          wl_fixed_t sx, wl_fixed_t sy) {
+  (void)surf;
+  app_state = (AppState *)data;
+  ptr_x = wl_fixed_to_double(sx);
+  ptr_y = wl_fixed_to_double(sy);
+  pressed_index = -1;
+
+  /* Deliberately NOT changing the selection here: if the popup opens under
+   * a resting cursor, the keyboard's default selection must win until the
+   * mouse actually moves. */
+
+  if (cursor_load())
+    wl_pointer_set_cursor(pointer, serial, cursor_surface,
+                          (int32_t)cursor_image->hotspot_x / cursor_scale,
+                          (int32_t)cursor_image->hotspot_y / cursor_scale);
+}
+
+static void pointer_leave(void *data, struct wl_pointer *pointer,
+                          uint32_t serial, struct wl_surface *surf) {
+  (void)data;
+  (void)pointer;
+  (void)serial;
+  (void)surf;
+  pressed_index = -1;
+}
+
+static void pointer_motion(void *data, struct wl_pointer *pointer,
+                           uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
+  (void)pointer;
+  (void)time;
+  app_state = (AppState *)data;
+
+  double x = wl_fixed_to_double(sx);
+  double y = wl_fixed_to_double(sy);
+  /* Some compositors echo the enter position as a motion event */
+  if (x == ptr_x && y == ptr_y)
+    return;
+  ptr_x = x;
+  ptr_y = y;
+
+  if (!app_state)
+    return;
+
+  int idx = render_hit_test(app_state, app_state->width, app_state->height,
+                            ptr_x, ptr_y);
+  if (idx >= 0 && idx != app_state->selected_index) {
+    app_state->selected_index = idx;
+    app_state->needs_render = true;
+  }
+}
+
+static void pointer_button(void *data, struct wl_pointer *pointer,
+                           uint32_t serial, uint32_t time, uint32_t button,
+                           uint32_t state_w) {
+  (void)pointer;
+  (void)serial;
+  (void)time;
+  app_state = (AppState *)data;
+
+  if (button != BTN_LEFT || !app_state)
+    return;
+
+  int idx = render_hit_test(app_state, app_state->width, app_state->height,
+                            ptr_x, ptr_y);
+
+  if (state_w == WL_POINTER_BUTTON_STATE_PRESSED) {
+    pressed_index = idx;
+    return;
+  }
+
+  /* Switch on release so the release never lands on the window beneath */
+  if (idx >= 0 && idx == pressed_index) {
+    app_state->selected_index = idx;
+    if (on_alt_release)
+      on_alt_release();
+  }
+  pressed_index = -1;
+}
+
+static void pointer_axis(void *data, struct wl_pointer *pointer, uint32_t time,
+                         uint32_t axis, wl_fixed_t value) {
+  (void)data;
+  (void)pointer;
+  (void)time;
+  (void)axis;
+  (void)value;
+}
+
+static void pointer_frame(void *data, struct wl_pointer *pointer) {
+  (void)data;
+  (void)pointer;
+}
+
+static void pointer_axis_source(void *data, struct wl_pointer *pointer,
+                                uint32_t source) {
+  (void)data;
+  (void)pointer;
+  (void)source;
+}
+
+static void pointer_axis_stop(void *data, struct wl_pointer *pointer,
+                              uint32_t time, uint32_t axis) {
+  (void)data;
+  (void)pointer;
+  (void)time;
+  (void)axis;
+}
+
+static void pointer_axis_discrete(void *data, struct wl_pointer *pointer,
+                                  uint32_t axis, int32_t discrete) {
+  (void)data;
+  (void)pointer;
+  (void)axis;
+  (void)discrete;
+}
+
+static const struct wl_pointer_listener pointer_listener = {
+    .enter = pointer_enter,
+    .leave = pointer_leave,
+    .motion = pointer_motion,
+    .button = pointer_button,
+    .axis = pointer_axis,
+    .frame = pointer_frame,
+    .axis_source = pointer_axis_source,
+    .axis_stop = pointer_axis_stop,
+    .axis_discrete = pointer_axis_discrete,
+};
+
+const struct wl_pointer_listener *get_pointer_listener(void) {
+  return &pointer_listener;
+}
+
 void input_cleanup(void) {
+  if (cursor_theme) {
+    wl_cursor_theme_destroy(cursor_theme);
+    cursor_theme = NULL;
+    cursor_image = NULL;
+  }
+  if (cursor_surface) {
+    wl_surface_destroy(cursor_surface);
+    cursor_surface = NULL;
+  }
   if (xkb_st) {
     xkb_state_unref(xkb_st);
     xkb_st = NULL;

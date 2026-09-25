@@ -32,6 +32,9 @@ void input_reset_alt_state(void);
 /* Get keyboard listener for Wayland seat */
 const struct wl_keyboard_listener *get_keyboard_listener(void);
 
+/* Get pointer listener for Wayland seat (hover to select, click to switch) */
+const struct wl_pointer_listener *get_pointer_listener(void);
+
 /* Cleanup input resources */
 void input_cleanup(void);
 

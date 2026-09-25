@@ -48,6 +48,7 @@ struct wl_seat *seat = NULL;
 
 int output_scale = 1;
 struct wl_keyboard *keyboard = NULL;
+struct wl_pointer *pointer = NULL;
 
 static bool running = true;
 static bool visible = false;
@@ -132,6 +133,18 @@ static void seat_capabilities(void *data, struct wl_seat *wl_seat,
     wl_keyboard_release(keyboard);
     keyboard = NULL;
     LOG("Keyboard listener released (seat lost keyboard capability)");
+  }
+
+  /* Pointer is optional: hover/click on cards is an extra way to pick a
+   * window alongside the keyboard. Same acquire/release dance as above. */
+  if ((caps & WL_SEAT_CAPABILITY_POINTER) && !pointer) {
+    pointer = wl_seat_get_pointer(seat);
+    wl_pointer_add_listener(pointer, get_pointer_listener(), state);
+    LOG("Pointer listener attached");
+  } else if (!(caps & WL_SEAT_CAPABILITY_POINTER) && pointer) {
+    wl_pointer_release(pointer);
+    pointer = NULL;
+    LOG("Pointer listener released (seat lost pointer capability)");
   }
 }
 
@@ -1028,6 +1041,8 @@ static int run_daemon(const char *config_path) {
     wl_surface_destroy(surface);
   if (keyboard)
     wl_keyboard_destroy(keyboard);
+  if (pointer)
+    wl_pointer_destroy(pointer);
   if (output)
     wl_output_destroy(output);
   if (seat)
