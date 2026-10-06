@@ -32,6 +32,7 @@
 | **Dynamic Pango UI** | Cairo/Pango rendering pipeline with automatic grid scaling, HiDPI support, SVG/PNG icon resolution, and configurable workspace badges. |
 | **Silent & Linear Routing** | `--silent` performs an instant MRU switch without ever creating a Wayland surface. `--linear` bypasses MRU for deterministic workspace/address cycling. Combinable. |
 | **Dual-Track Dismiss** | Dismiss-on-release supports both XKB modifier masks (`alt`, `super`, `ctrl`, `shift`) and raw keycode tracking (`space`, `1`, `Return`, etc.). |
+| **Mouse Support** | Hover a card to highlight it, left-click to switch to it. Works alongside the keyboard in both hold-to-switch and toggle mode. Opt-in via `mouse_support = true`. |
 | **Rapid-Tap Safe** | The input engine distinguishes genuine config mismatches from rapid taps by inspecting the XKB depressed-modifier bitmask, eliminating false-alarm error banners. |
 | **15 Themes** | Ships with Catppuccin (Mocha/Latte/Frappe), Dracula, Nord, Nordic, Tokyo Night, Gruvbox, Rose Pine, Cyberpunk, Liquid Glass, and more. Full `.ini` customization. |
 | **Special Workspace Filter** | Excludes scratchpad/dropdown windows (`special:*`) from the switcher by default. Configurable via `ignore_special`. |
@@ -199,7 +200,7 @@ bindd = SUPER, Tab, Snappy Switcher Workspace Next, exec, snappy-switcher next -
 
 ### 3. Done
 
-Press your configured bind to see it in action.
+Press your configured bind to see it in action. Navigate with Tab / arrow keys, or set `mouse_support = true` to hover a card with the mouse and left-click it to switch.
 
 ---
 

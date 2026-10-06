@@ -47,6 +47,11 @@ ignore_pinned = false
 # false = list special workspace windows like any other window
 ignore_special = true
 
+# Mouse support: hover a card to highlight it, left-click to switch to it
+# true  = mouse works alongside the keyboard
+# false = keyboard only; the popup ignores the pointer entirely (default)
+mouse_support = false
+
 # ┌───────────────────────────────────────────────────────────────────────────┐
 # │                              THEME SETTINGS                               │
 # └───────────────────────────────────────────────────────────────────────────┘

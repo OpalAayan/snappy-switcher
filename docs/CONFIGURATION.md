@@ -112,6 +112,7 @@ flowchart LR
 | `sticky_mode` | `true`, `false` | `false` | When true, opening the switcher retains focus on the currently active window instead of immediately jumping to the previous window. |
 | `ignore_pinned` | `true`, `false` | `false` | Exclude pinned (always-on-top, all-workspace) windows like PiP from the switcher. |
 | `ignore_special` | `true`, `false` | `true` | Exclude windows on special (scratchpad) workspaces. Covers both unnamed (`special`) and named (`special:term`, `special:magic`, etc.) workspaces. |
+| `mouse_support` | `true`, `false` | `false` | Hover a card to highlight it and left-click to switch to it. When `false`, the popup ignores the pointer. |
 
 ### Mode Comparison
 
