@@ -21,6 +21,11 @@ void calculate_dimensions(AppState *state, uint32_t *width, uint32_t *height);
 /* Render the window switcher UI */
 void render_ui(AppState *state, uint32_t logical_width, uint32_t logical_height, int scale);
 
+/* Return the index of the window card under the logical surface coordinates
+ * (x, y), or -1 if none (padding, gaps, error banner, empty list). */
+int render_hit_test(const AppState *state, uint32_t logical_width,
+                    uint32_t logical_height, double x, double y);
+
 /* Free any in-flight render buffers (call during shutdown) */
 void render_cleanup_buffers(void);
 

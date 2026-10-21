@@ -62,6 +62,7 @@ typedef struct {
   bool sticky_mode;
   bool ignore_pinned;  /* Exclude pinned (always-on-top, all-workspace) windows, e.g. PiP */
   bool ignore_special; /* Exclude windows on special (scratchpad) workspaces */
+  bool mouse_support;  /* Hover/click on cards to select and switch */
 
 } Config;
 

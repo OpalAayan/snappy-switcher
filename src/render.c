@@ -768,6 +768,61 @@ static void draw_error_overlay(cairo_t *cr, int width, int height,
   g_object_unref(watermark);
 }
 
+/* Card grid geometry in logical (unscaled) surface coordinates.
+ * Shared by render_ui() and render_hit_test() so that what is drawn and
+ * what is clickable can never disagree. */
+typedef struct {
+  int card_w, card_h, gap, max_cols;
+  double start_x, start_y;
+} GridLayout;
+
+static void grid_layout(int count, uint32_t logical_width,
+                        uint32_t logical_height, GridLayout *gl) {
+  gl->card_w = cfg ? cfg->card_width : 200;
+  gl->card_h = cfg ? cfg->card_height : 160;
+  gl->gap = cfg ? cfg->card_gap : 12;
+  gl->max_cols = cfg ? cfg->max_cols : 5;
+  int pad = cfg ? cfg->padding : 32;
+
+  int cols = (count < gl->max_cols) ? count : gl->max_cols;
+  int rows = (count + gl->max_cols - 1) / gl->max_cols;
+
+  int grid_w = (cols * gl->card_w) + ((cols - 1) * gl->gap);
+  int grid_h = (rows * gl->card_h) + ((rows - 1) * gl->gap);
+
+  gl->start_x = ((double)logical_width - grid_w) / 2.0;
+  gl->start_y = ((double)logical_height - grid_h) / 2.0;
+  if (gl->start_x < pad)
+    gl->start_x = pad;
+  if (gl->start_y < pad)
+    gl->start_y = pad;
+}
+
+static void grid_card_origin(const GridLayout *gl, int i, double *x,
+                             double *y) {
+  int row = i / gl->max_cols;
+  int c = i % gl->max_cols;
+  *x = gl->start_x + c * (gl->card_w + gl->gap);
+  *y = gl->start_y + row * (gl->card_h + gl->gap);
+}
+
+int render_hit_test(const AppState *state, uint32_t logical_width,
+                    uint32_t logical_height, double x, double y) {
+  if (!state || state->error_message || state->count <= 0)
+    return -1;
+
+  GridLayout gl;
+  grid_layout(state->count, logical_width, logical_height, &gl);
+
+  for (int i = 0; i < state->count; i++) {
+    double cx, cy;
+    grid_card_origin(&gl, i, &cx, &cy);
+    if (x >= cx && x < cx + gl.card_w && y >= cy && y < cy + gl.card_h)
+      return i;
+  }
+  return -1;
+}
+
 void render_ui(AppState *state, uint32_t logical_width, uint32_t logical_height,
                int scale) {
   uint32_t phys_width = logical_width * scale;
@@ -851,33 +906,15 @@ void render_ui(AppState *state, uint32_t logical_width, uint32_t logical_height,
     pango_cairo_show_layout(cr, msg);
     g_object_unref(msg);
   } else {
-    int cw = cfg ? cfg->card_width : 200;
-    int ch = cfg ? cfg->card_height : 160;
-    int gap = cfg ? cfg->card_gap : 12;
-    int pad = cfg ? cfg->padding : 32;
-    int max_cols = cfg ? cfg->max_cols : 5;
-
-    int cols = (state->count < max_cols) ? state->count : max_cols;
-    int rows = (state->count + max_cols - 1) / max_cols;
-
-    int grid_w = (cols * cw) + ((cols - 1) * gap);
-    int grid_h = (rows * ch) + ((rows - 1) * gap);
-
-    double start_x = (logical_width - grid_w) / 2.0;
-    double start_y = (logical_height - grid_h) / 2.0;
-    if (start_x < pad)
-      start_x = pad;
-    if (start_y < pad)
-      start_y = pad;
+    GridLayout gl;
+    grid_layout(state->count, logical_width, logical_height, &gl);
 
     /* Zero the workspace letter tracker for this render pass */
     letter_tracker_init(&g_letter_tracker);
 
     for (int i = 0; i < state->count; i++) {
-      int row = i / max_cols;
-      int c = i % max_cols;
-      double x = start_x + c * (cw + gap);
-      double y = start_y + row * (ch + gap);
+      double x, y;
+      grid_card_origin(&gl, i, &x, &y);
       draw_card(cr, &state->windows[i], x, y, i == state->selected_index);
     }
   }
