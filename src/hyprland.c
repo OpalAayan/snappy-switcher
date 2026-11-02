@@ -194,13 +194,19 @@ static int compare_mru(const void *a, const void *b) {
   return strcmp(addr_a, addr_b);
 }
 
-/* --- Sorting (Linear: workspace_id ASC, address ASC) --- */
+/* --- Sorting (Linear: workspace_id ASC, workspace_name ASC, address ASC) --- */
 static int compare_linear(const void *a, const void *b) {
   const WindowInfo *wa = (const WindowInfo *)a;
   const WindowInfo *wb = (const WindowInfo *)b;
 
   if (wa->workspace_id != wb->workspace_id)
     return wa->workspace_id - wb->workspace_id;
+
+  const char *name_a = wa->workspace_name ? wa->workspace_name : "";
+  const char *name_b = wb->workspace_name ? wb->workspace_name : "";
+  int name_diff = strcmp(name_a, name_b);
+  if (name_diff != 0)
+    return name_diff;
 
   const char *addr_a = wa->address ? wa->address : "";
   const char *addr_b = wb->address ? wb->address : "";
@@ -355,15 +361,26 @@ static int parse_clients(const char *json_str, AppState *state, int target_ws,
 
     if (!json_object_object_get_ex(obj, "workspace", &ws_obj))
       continue;
-    if (!json_object_object_get_ex(ws_obj, "id", &ws_id))
+
+    json_object_object_get_ex(ws_obj, "name", &ws_name);
+    const char *ws_name_str = ws_name ? json_object_get_string(ws_name) : "";
+
+    int wid;
+    if (json_object_object_get_ex(ws_obj, "id", &ws_id)) {
+      wid = json_object_get_int(ws_id);
+    } else if (ws_name_str && *ws_name_str) {
+      /* Hyprland 0.57+ omits "id" for non-numbered workspaces (both
+       * special workspaces like "special:special" / "special:term" and
+       * named workspaces like "music"). Assign -1 so ignore_special and
+       * downstream badge formatting handle them identically to pre-0.57. */
+      wid = -1;
+    } else {
       continue;
+    }
 
-    int wid = json_object_get_int(ws_id);
-
-    /* Skip special workspaces (negative IDs) when configured.
-     * Hyprland assigns id < 0 to ALL special workspaces — both the
-     * default "special" (id -1) and named ones like "special:term"
-     * (id -99, -1337, etc.). */
+    /* Skip special and named workspaces (negative IDs) when configured.
+     * Pre-0.57 Hyprland assigns id < 0 to special and named workspaces;
+     * 0.57+ omits "id" for them (mapped to wid = -1 above). */
     if (ignore_special && wid < 0)
       continue;
 
@@ -371,7 +388,6 @@ static int parse_clients(const char *json_str, AppState *state, int target_ws,
     if (target_ws != WS_FILTER_NONE && wid != target_ws)
       continue;
 
-    json_object_object_get_ex(ws_obj, "name", &ws_name);
     json_object_object_get_ex(obj, "address", &addr);
     json_object_object_get_ex(obj, "title", &title);
     json_object_object_get_ex(obj, "class", &cls);
@@ -391,7 +407,7 @@ static int parse_clients(const char *json_str, AppState *state, int target_ws,
     info.title = safe_strdup(json_object_get_string(title));
     info.class_name = safe_strdup(json_object_get_string(cls));
     info.workspace_id = wid;
-    info.workspace_name = safe_strdup(ws_name ? json_object_get_string(ws_name) : "");
+    info.workspace_name = safe_strdup(ws_name_str);
     info.focus_history_id = focus ? json_object_get_int(focus) : 9999;
     info.is_active = (info.focus_history_id == 0);
     info.is_floating = floating ? json_object_get_boolean(floating) : false;
@@ -435,6 +451,7 @@ static void aggregate_context(AppState *state) {
       int found = -1;
       for (int j = 0; j < out_count; j++) {
         if (!out[j].is_floating && out[j].workspace_id == win->workspace_id &&
+            strcmp(out[j].workspace_name, win->workspace_name) == 0 &&
             strcmp(out[j].class_name, win->class_name) == 0) {
           found = j;
           break;

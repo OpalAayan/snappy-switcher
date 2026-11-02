@@ -80,7 +80,7 @@ sequenceDiagram
 | `address` | `string` | Unique window identifier (hex) |
 | `title` | `string` | Window title text |
 | `class` | `string` | App class name (e.g., `kitty`, `firefox`) |
-| `workspace.id` | `int` | Workspace number (negative for special workspaces) |
+| `workspace.id` | `int` | Workspace number (negative on pre-0.57 or omitted/mapped to `-1` on 0.57+ for special and named workspaces) |
 | `workspace.name` | `string` | Workspace name (e.g., `"1"`, `"music"`, `"special:scratchpad"`) |
 | `focusHistoryID` | `int` | MRU position (0 = most recent) |
 | `floating` | `bool` | Tiled or floating window |
@@ -184,7 +184,7 @@ graph LR
 | Window Type | Behavior |
 |-------------|----------|
 | **Floating** | NEVER grouped -- always unique card |
-| **Tiled** | Grouped by `workspace_id + class_name` |
+| **Tiled** | Grouped by `workspace_id + workspace_name + class_name` |
 
 ---
 

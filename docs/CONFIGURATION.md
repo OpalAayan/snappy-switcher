@@ -111,7 +111,7 @@ flowchart LR
 | `follow_monitor` | `true`, `false` | `false` | Panel follows the focused monitor |
 | `sticky_mode` | `true`, `false` | `false` | When true, opening the switcher retains focus on the currently active window instead of immediately jumping to the previous window. |
 | `ignore_pinned` | `true`, `false` | `false` | Exclude pinned (always-on-top, all-workspace) windows like PiP from the switcher. |
-| `ignore_special` | `true`, `false` | `true` | Exclude windows on special (scratchpad) workspaces. Covers both unnamed (`special`) and named (`special:term`, `special:magic`, etc.) workspaces. |
+| `ignore_special` | `true`, `false` | `true` | Exclude windows on special (`special` / `special:*`) and named workspaces. Set to `false` to display them in the switcher. |
 
 ### Mode Comparison
 
