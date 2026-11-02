@@ -357,6 +357,32 @@ show_letter_fallback = true
 
 ---
 
+## [custom_icons] -- Per-Class Icon Overrides
+
+Override or assign icons for specific window classes without editing system `.desktop` files. Find the exact class name of any open window with:
+
+```bash
+hyprctl clients | grep "class:"
+```
+
+Each entry under `[custom_icons]` supports **two modes**:
+1. **Theme icon name / alias** (no `/`): Maps a custom window class (e.g. `kitty --class kitty-work`) or mismatched class (`code`, `md.obsidian.Obsidian`) to an icon name in your active icon theme / `/usr/share/pixmaps`.
+2. **Direct image file path** (`/...` or `~/...`): Loads any `.svg`, `.png`, or `.jpg` file directly from disk and scales it down to `icon_size`. Ideal for AppImages, custom scripts, or custom per-window artwork.
+
+> [!TIP]
+> **Sharp, blurless rendering:** Prefer `.svg` vector icons when possible, or size custom raster images (`.png` / `.jpg`) to match your `[layout]` `icon_size` (e.g. `56x56` or `64x64`, or a clean multiple like `128x128`) so they render 1:1 without interpolation blur.
+
+```ini
+[custom_icons]
+kitty-work           = kitty
+kitty-fruity         = ~/.config/snappy-switcher/icons/fruity.png
+kitty-other          = /home/user/pic/icon.svg
+code                 = vscode
+md.obsidian.Obsidian = obsidian
+```
+
+---
+
 ## [font] -- Typography
 
 | Key | Default | Description |

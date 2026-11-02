@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #ifdef HAVE_RSVG
+#include <gdk-pixbuf/gdk-pixbuf.h>
 #include <librsvg/rsvg.h>
 #endif
 
@@ -77,6 +78,7 @@ static const ClassMapping class_mappings[] = {
     /* Misc */
     {"org.wezfurlong.wezterm", "org.wezfurlong.wezterm"},
     {"wezterm-gui", "org.wezfurlong.wezterm"},
+    {"md.obsidian.Obsidian", "obsidian"},
     {"Gimp-2.10", "gimp"},
     {"gimp-2.99", "gimp"},
 
@@ -102,6 +104,9 @@ static IconCacheEntry icon_cache[MAX_CACHE];
 static int cache_count = 0;
 static char current_theme[64] = "Tela-dracula";
 static char fallback_theme_name[64] = "Tela-circle-dracula";
+static Config *icon_cfg = NULL;
+
+void icons_set_config(Config *cfg) { icon_cfg = cfg; }
 
 /* XDG icon search paths */
 static char user_icons_path[MAX_PATH];
@@ -131,6 +136,18 @@ static void to_lowercase(char *dest, const char *src, size_t max) {
 static int file_exists(const char *path) {
   struct stat st;
   return stat(path, &st) == 0 && S_ISREG(st.st_mode);
+}
+
+/* Lookup user-configured [custom_icons] override, returns NULL if none */
+static const char *get_custom_icon(const char *class_name) {
+  if (!icon_cfg || !class_name || !class_name[0])
+    return NULL;
+  for (int i = 0; i < icon_cfg->custom_icons_count; i++) {
+    if (strcasecmp(icon_cfg->custom_icons[i].wm_class, class_name) == 0) {
+      return icon_cfg->custom_icons[i].icon_target;
+    }
+  }
+  return NULL;
 }
 
 /* Lookup mapped class name, returns NULL if no mapping exists */
@@ -253,8 +270,9 @@ static char *find_icon_in_theme(const char *theme, const char *icon_name,
   static char path[MAX_PATH];
   (void)size; /* Size hint not used currently */
 
-  const char *sizes[] = {"scalable", "256x256", "128x128", "64x64", "48x48",
-                         "32x32",    "24x24",   "22x22",   "16x16"};
+  const char *sizes[] = {"scalable", "512x512", "256x256", "128x128",
+                         "64x64",    "48x48",   "32x32",   "24x24",
+                         "22x22",    "16x16",   "1024x1024"};
   const char *categories[] = {"apps",   "applications", "mimetypes",
                               "places", "devices",      "actions",
                               "status", "categories"};
@@ -306,7 +324,56 @@ static char *find_icon_in_theme(const char *theme, const char *icon_name,
  * DESKTOP FILE HANDLING
  * ========================================================================= */
 
-/* Scan directory for desktop file matching class name */
+/* Check if a .desktop file's StartupWMClass= matches class_name */
+static bool desktop_matches_wm_class(const char *desktop_path,
+                                     const char *class_name) {
+  FILE *fp = fopen(desktop_path, "r");
+  if (!fp)
+    return false;
+
+  char line[512];
+  while (fgets(line, sizeof(line), fp)) {
+    if (strncasecmp(line, "StartupWMClass=", 15) == 0) {
+      char *value = line + 15;
+      while (*value == ' ')
+        value++;
+      char *end = value + strlen(value) - 1;
+      while (end > value && (*end == '\n' || *end == '\r' || *end == ' ')) {
+        *end-- = '\0';
+      }
+      if (strcasecmp(value, class_name) == 0) {
+        fclose(fp);
+        return true;
+      }
+    }
+  }
+  fclose(fp);
+  return false;
+}
+
+/* Check if a .desktop file has NoDisplay=true (helper/handler desktop entry) */
+static bool desktop_is_no_display(const char *desktop_path) {
+  FILE *fp = fopen(desktop_path, "r");
+  if (!fp)
+    return false;
+
+  char line[512];
+  while (fgets(line, sizeof(line), fp)) {
+    if (strncasecmp(line, "NoDisplay=", 10) == 0) {
+      char *value = line + 10;
+      while (*value == ' ')
+        value++;
+      if (strncasecmp(value, "true", 4) == 0) {
+        fclose(fp);
+        return true;
+      }
+    }
+  }
+  fclose(fp);
+  return false;
+}
+
+/* Scan directory for desktop file matching class name (exact v4.5.0 behavior) */
 static char *find_desktop_file_by_scan(const char *class_name) {
   static char found_path[MAX_PATH];
   char lowercase_class[128];
@@ -319,7 +386,8 @@ static char *find_desktop_file_by_scan(const char *class_name) {
 
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
-      if (entry->d_type != DT_REG && entry->d_type != DT_LNK)
+      if (entry->d_type != DT_REG && entry->d_type != DT_LNK &&
+          entry->d_type != DT_UNKNOWN)
         continue;
 
       const char *name = entry->d_name;
@@ -339,8 +407,38 @@ static char *find_desktop_file_by_scan(const char *class_name) {
       if (strstr(lowercase_name, lowercase_class) != NULL) {
         snprintf(found_path, sizeof(found_path), "%s/%s", desktop_dirs[d],
                  name);
+        if (desktop_is_no_display(found_path))
+          continue;
         closedir(dir);
         LOG("Found desktop file: %s", found_path);
+        return found_path;
+      }
+    }
+    closedir(dir);
+  }
+
+  /* Second-pass fallback scan: only if filename substring match found nothing,
+   * check StartupWMClass= inside .desktop files */
+  for (int d = 0; desktop_dirs[d]; d++) {
+    DIR *dir = opendir(desktop_dirs[d]);
+    if (!dir)
+      continue;
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+      if (entry->d_type != DT_REG && entry->d_type != DT_LNK &&
+          entry->d_type != DT_UNKNOWN)
+        continue;
+
+      const char *name = entry->d_name;
+      size_t len = strlen(name);
+      if (len < 9 || strcmp(name + len - 8, ".desktop") != 0)
+        continue;
+
+      snprintf(found_path, sizeof(found_path), "%s/%s", desktop_dirs[d], name);
+      if (desktop_matches_wm_class(found_path, class_name)) {
+        closedir(dir);
+        LOG("Found desktop file (by StartupWMClass): %s", found_path);
         return found_path;
       }
     }
@@ -421,6 +519,22 @@ static char *find_desktop_icon(const char *class_name) {
     }
   }
 
+  /* Method 4 (Last-resort for reverse-DNS classes like "md.obsidian.Obsidian"
+   * that had no matching org.x.y.desktop): try the tail segment ("obsidian.desktop") */
+  const char *dot_tail = strrchr(lowercase, '.');
+  if (dot_tail && dot_tail[1] != '\0') {
+    const char *short_name = dot_tail + 1;
+    for (int d = 0; desktop_dirs[d]; d++) {
+      snprintf(desktop_path, sizeof(desktop_path), "%s/%s.desktop",
+               desktop_dirs[d], short_name);
+      if (file_exists(desktop_path)) {
+        char *icon = extract_icon_from_desktop(desktop_path);
+        if (icon)
+          return icon;
+      }
+    }
+  }
+
   /* Fallback: use lowercase class name as icon name */
   strncpy(icon_name, lowercase, sizeof(icon_name) - 1);
   return icon_name;
@@ -474,7 +588,7 @@ static cairo_surface_t *find_png_fallback(const char *icon_name, int size) {
   char try_path[MAX_PATH];
   /* Include user's active themes before falling back to hicolor/Adwaita */
   const char *themes[] = {current_theme, fallback_theme_name, "hicolor", "Adwaita"};
-  const char *raster_sizes[] = {"256x256", "128x128", "64x64",
+  const char *raster_sizes[] = {"512x512", "256x256", "128x128", "64x64",
                                 "48x48",   "32x32",   "24x24"};
   const char *categories[] = {"apps", "applications"};
 
@@ -609,7 +723,215 @@ static cairo_surface_t *load_svg_icon(const char *path, int size) {
   g_object_unref(handle);
   return surface;
 }
+
+/* Load raster formats (.jpg, .jpeg, .xpm, .webp, etc.) via GdkPixbuf
+ * and scale cleanly to target icon size. */
+static cairo_surface_t *load_pixbuf_icon(const char *path, int size) {
+  GError *error = NULL;
+  GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(path, &error);
+  if (!pixbuf) {
+    if (error) {
+      LOG("Pixbuf load error (%s): %s", path, error->message);
+      g_error_free(error);
+    }
+    return NULL;
+  }
+
+  int pw = gdk_pixbuf_get_width(pixbuf);
+  int ph = gdk_pixbuf_get_height(pixbuf);
+  int n_ch = gdk_pixbuf_get_n_channels(pixbuf);
+  int rowstride = gdk_pixbuf_get_rowstride(pixbuf);
+  const guchar *pixels = gdk_pixbuf_get_pixels(pixbuf);
+  gboolean has_alpha = gdk_pixbuf_get_has_alpha(pixbuf);
+
+  cairo_surface_t *raw =
+      cairo_image_surface_create(CAIRO_FORMAT_ARGB32, pw, ph);
+  if (cairo_surface_status(raw) != CAIRO_STATUS_SUCCESS) {
+    cairo_surface_destroy(raw);
+    g_object_unref(pixbuf);
+    return NULL;
+  }
+
+  cairo_surface_flush(raw);
+  unsigned char *dst_data = cairo_image_surface_get_data(raw);
+  int dst_stride = cairo_image_surface_get_stride(raw);
+
+  for (int y = 0; y < ph; y++) {
+    const guchar *src_row = pixels + y * rowstride;
+    uint32_t *dst_row = (uint32_t *)(dst_data + y * dst_stride);
+    for (int x = 0; x < pw; x++) {
+      const guchar *p = src_row + x * n_ch;
+      uint8_t r = p[0];
+      uint8_t g = p[1];
+      uint8_t b = p[2];
+      uint8_t a = has_alpha ? p[3] : 255;
+
+      /* Premultiply alpha for CAIRO_FORMAT_ARGB32 */
+      if (a == 0) {
+        dst_row[x] = 0;
+      } else if (a == 255) {
+        dst_row[x] = (255u << 24) | ((uint32_t)r << 16) |
+                     ((uint32_t)g << 8) | (uint32_t)b;
+      } else {
+        uint32_t rp = (r * a + 127) / 255;
+        uint32_t gp = (g * a + 127) / 255;
+        uint32_t bp = (b * a + 127) / 255;
+        dst_row[x] = ((uint32_t)a << 24) | (rp << 16) | (gp << 8) | bp;
+      }
+    }
+  }
+  cairo_surface_mark_dirty(raw);
+  g_object_unref(pixbuf);
+
+  if (pw != size || ph != size) {
+    cairo_surface_t *scaled =
+        cairo_image_surface_create(CAIRO_FORMAT_ARGB32, size, size);
+    cairo_t *cr = cairo_create(scaled);
+
+    double scale_x = (double)size / pw;
+    double scale_y = (double)size / ph;
+    double scale = (scale_x < scale_y) ? scale_x : scale_y;
+    double offset_x = (size - pw * scale) / 2.0;
+    double offset_y = (size - ph * scale) / 2.0;
+
+    cairo_translate(cr, offset_x, offset_y);
+    cairo_scale(cr, scale, scale);
+
+    cairo_set_source_surface(cr, raw, 0, 0);
+    cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_BEST);
+    cairo_paint(cr);
+
+    cairo_destroy(cr);
+    cairo_surface_destroy(raw);
+    return scaled;
+  }
+
+  return raw;
+}
 #endif
+
+/* Load an icon file from an explicit filesystem path (.png, .svg, .jpg, etc.) */
+static cairo_surface_t *load_icon_from_path(const char *path, int size,
+                                            const char *fallback_icon_name) {
+  if (!path || !file_exists(path))
+    return NULL;
+
+  const char *ext = strrchr(path, '.');
+  if (!ext)
+    return NULL;
+
+  if (strcasecmp(ext, ".png") == 0) {
+    return load_png_icon(path, size);
+  }
+#ifdef HAVE_RSVG
+  if (strcasecmp(ext, ".svg") == 0) {
+    cairo_surface_t *s = load_svg_icon(path, size);
+    if (!s && fallback_icon_name) {
+      LOG("SVG load failed, trying PNG fallback for: %s", fallback_icon_name);
+      s = find_png_fallback(fallback_icon_name, size);
+    }
+    return s;
+  }
+  if (strcasecmp(ext, ".jpg") == 0 || strcasecmp(ext, ".jpeg") == 0 ||
+      strcasecmp(ext, ".xpm") == 0 || strcasecmp(ext, ".webp") == 0) {
+    return load_pixbuf_icon(path, size);
+  }
+#else
+  if (strcasecmp(ext, ".svg") == 0 && fallback_icon_name) {
+    LOG("SVG found but RSVG disabled, searching PNG fallback for: %s",
+        fallback_icon_name);
+    return find_png_fallback(fallback_icon_name, size);
+  }
+#endif
+
+  return NULL;
+}
+
+/* Search themes for an icon name (and its lowercase form) and load it */
+static cairo_surface_t *load_icon_by_theme_name(const char *icon_name,
+                                                int size) {
+  if (!icon_name || !icon_name[0])
+    return NULL;
+
+  char *icon_path = find_icon_in_theme(current_theme, icon_name, size);
+  if (!icon_path)
+    icon_path = find_icon_in_theme(fallback_theme_name, icon_name, size);
+  if (!icon_path)
+    icon_path = find_icon_in_theme("hicolor", icon_name, size);
+  if (!icon_path)
+    icon_path = find_icon_in_theme("Adwaita", icon_name, size);
+
+  /* If icon_name had uppercase letters (e.g. "Nautilus"), also try lowercase ("nautilus") */
+  if (!icon_path) {
+    char lower_name[256];
+    to_lowercase(lower_name, icon_name, sizeof(lower_name));
+    if (strcmp(lower_name, icon_name) != 0) {
+      icon_path = find_icon_in_theme(current_theme, lower_name, size);
+      if (!icon_path)
+        icon_path = find_icon_in_theme(fallback_theme_name, lower_name, size);
+      if (!icon_path)
+        icon_path = find_icon_in_theme("hicolor", lower_name, size);
+      if (!icon_path)
+        icon_path = find_icon_in_theme("Adwaita", lower_name, size);
+    }
+  }
+
+  if (!icon_path)
+    return NULL;
+
+  LOG("Loading icon: %s", icon_path);
+  return load_icon_from_path(icon_path, size, icon_name);
+}
+
+/* Resolve a class/icon identifier via .desktop + theme lookup */
+static cairo_surface_t *resolve_and_load_icon(const char *identifier,
+                                              int size) {
+  if (!identifier || !identifier[0])
+    return NULL;
+
+  char *icon_name = find_desktop_icon(identifier);
+  LOG("Class '%s' -> icon '%s'", identifier, icon_name ? icon_name : "(null)");
+  if (!icon_name)
+    return NULL;
+
+  /* Copy icon_name to local buffer since find_desktop_icon returns static buf */
+  char resolved_name[256];
+  strncpy(resolved_name, icon_name, sizeof(resolved_name) - 1);
+  resolved_name[sizeof(resolved_name) - 1] = '\0';
+
+  cairo_surface_t *surface = NULL;
+
+  /* 1. If Icon= in .desktop was an absolute path */
+  if (resolved_name[0] == '/' && file_exists(resolved_name)) {
+    LOG("Loading absolute path icon: %s", resolved_name);
+    const char *slash = strrchr(resolved_name, '/');
+    const char *base = slash ? slash + 1 : resolved_name;
+    char base_name[256];
+    strncpy(base_name, base, sizeof(base_name) - 1);
+    base_name[sizeof(base_name) - 1] = '\0';
+    char *dot = strrchr(base_name, '.');
+    if (dot)
+      *dot = '\0';
+
+    surface = load_icon_from_path(resolved_name, size, base_name);
+    if (surface)
+      return surface;
+    LOG("Direct load failed, trying theme search for: %s", resolved_name);
+  }
+
+  /* 2. Search icon themes for resolved_name */
+  surface = load_icon_by_theme_name(resolved_name, size);
+  if (surface)
+    return surface;
+
+  /* 3. If identifier itself differs from resolved_name, try identifier directly
+   *    in icon themes (useful when user specifies a raw icon name like "vscode") */
+  if (strcasecmp(resolved_name, identifier) != 0) {
+    surface = load_icon_by_theme_name(identifier, size);
+  }
+
+  return surface;
+}
 
 /* =========================================================================
  * PUBLIC API
@@ -637,15 +959,7 @@ cairo_surface_t *load_app_icon(const char *class_name, int size) {
   if (!class_name || !class_name[0])
     return NULL;
 
-  /* Apply class name mapping first */
-  const char *effective_class = get_mapped_class(class_name);
-  if (effective_class) {
-    LOG("Mapped class '%s' -> '%s'", class_name, effective_class);
-  } else {
-    effective_class = class_name;
-  }
-
-  /* Check cache using ORIGINAL class name (for consistency) */
+  /* 1. Check cache using ORIGINAL class name (for consistency) */
   for (int i = 0; i < cache_count; i++) {
     if (strcmp(icon_cache[i].class_name, class_name) == 0 &&
         icon_cache[i].size == size) {
@@ -656,115 +970,52 @@ cairo_surface_t *load_app_icon(const char *class_name, int size) {
     }
   }
 
-  /* Find icon name from desktop file using effective (mapped) class */
-  char *icon_name = find_desktop_icon(effective_class);
-  LOG("Class '%s' -> icon '%s'", effective_class,
-      icon_name ? icon_name : "(null)");
-
-  if (!icon_name) {
-    /* Cache NULL result */
-    if (cache_count < MAX_CACHE) {
-      strncpy(icon_cache[cache_count].class_name, class_name, 127);
-      icon_cache[cache_count].size = size;
-      icon_cache[cache_count].surface = NULL;
-      cache_count++;
-    }
-    return NULL;
-  }
-
   cairo_surface_t *surface = NULL;
 
-  /* Check if icon_name is an absolute path */
-  if (icon_name[0] == '/' && file_exists(icon_name)) {
-    LOG("Loading absolute path icon: %s", icon_name);
-    const char *ext = strrchr(icon_name, '.');
-    if (ext) {
-      if (strcasecmp(ext, ".png") == 0) {
-        surface = load_png_icon(icon_name, size);
+  /* 2. Priority 0: Check user [custom_icons] override from config.ini */
+  const char *custom_target = get_custom_icon(class_name);
+  if (custom_target && custom_target[0]) {
+    LOG("Custom icon override for '%s' -> '%s'", class_name, custom_target);
+    if (strchr(custom_target, '/') != NULL) {
+      /* Explicit file path (.png, .svg, .jpg, etc.) */
+      if (file_exists(custom_target)) {
+        surface = load_icon_from_path(custom_target, size, NULL);
+      } else {
+        LOG("Custom icon file not found: %s (falling back to default lookup)",
+            custom_target);
       }
-#ifdef HAVE_RSVG
-      else if (strcasecmp(ext, ".svg") == 0) {
-        surface = load_svg_icon(icon_name, size);
+    } else {
+      /* Icon name or class alias (e.g. kitty-work = kitty, code = vscode) */
+      surface = load_icon_by_theme_name(custom_target, size);
+      if (!surface) {
+        surface = resolve_and_load_icon(custom_target, size);
       }
-#endif
-#ifndef HAVE_RSVG
-      else if (strcasecmp(ext, ".svg") == 0) {
-        /* SVG found but no librsvg — extract base name and try PNG */
-        const char *slash = strrchr(icon_name, '/');
-        const char *base = slash ? slash + 1 : icon_name;
-        char base_name[256];
-        strncpy(base_name, base, sizeof(base_name) - 1);
-        base_name[sizeof(base_name) - 1] = '\0';
-        char *dot = strrchr(base_name, '.');
-        if (dot)
-          *dot = '\0';
-        LOG("SVG found but RSVG disabled, trying PNG fallback for: %s",
-            base_name);
-        surface = find_png_fallback(base_name, size);
-      }
-#endif
-    }
-    if (surface) {
-      /* Cache result */
-      if (cache_count < MAX_CACHE) {
-        strncpy(icon_cache[cache_count].class_name, class_name, 127);
-        icon_cache[cache_count].size = size;
-        icon_cache[cache_count].surface = surface;
-        cairo_surface_reference(surface);
-        cache_count++;
-      }
-      return surface;
-    }
-    /* SVG/PNG load failed - fall through to theme search */
-    LOG("Direct load failed, trying theme search for: %s", icon_name);
-  }
-
-  /* Find icon file in themes */
-  char *icon_path = find_icon_in_theme(current_theme, icon_name, size);
-  if (!icon_path) {
-    icon_path = find_icon_in_theme(fallback_theme_name, icon_name, size);
-  }
-  if (!icon_path) {
-    icon_path = find_icon_in_theme("hicolor", icon_name, size);
-  }
-  if (!icon_path) {
-    icon_path = find_icon_in_theme("Adwaita", icon_name, size);
-  }
-
-  surface = NULL;
-
-  if (icon_path) {
-    LOG("Loading icon: %s", icon_path);
-
-    const char *ext = strrchr(icon_path, '.');
-    if (ext) {
-      if (strcasecmp(ext, ".png") == 0) {
-        surface = load_png_icon(icon_path, size);
-      }
-#ifdef HAVE_RSVG
-      else if (strcasecmp(ext, ".svg") == 0) {
-        surface = load_svg_icon(icon_path, size);
-        /* If SVG render itself failed, try PNG fallback */
-        if (!surface) {
-          LOG("SVG load failed, trying PNG fallback for: %s", icon_name);
-          surface = find_png_fallback(icon_name, size);
-        }
-      }
-#endif
-#ifndef HAVE_RSVG
-      else if (strcasecmp(ext, ".svg") == 0) {
-        LOG("SVG found but RSVG disabled, searching PNG fallback for: %s",
-            icon_name);
-        surface = find_png_fallback(icon_name, size);
-      }
-#endif
     }
   }
 
-  /* Cache result (including original class_name for cache lookup consistency)
-   */
+  /* 3. Built-in class mapping table (with fallback to raw class_name if
+   *    the mapped icon isn't installed on this distro, e.g. Arch extra/code) */
+  if (!surface) {
+    const char *mapped_class = get_mapped_class(class_name);
+    if (mapped_class) {
+      LOG("Mapped class '%s' -> '%s'", class_name, mapped_class);
+      surface = resolve_and_load_icon(mapped_class, size);
+      if (!surface && strcasecmp(mapped_class, class_name) != 0) {
+        LOG("Mapped icon '%s' not found, retrying with raw class '%s'",
+            mapped_class, class_name);
+      }
+    }
+  }
+
+  /* 4. Standard lookup using raw class_name */
+  if (!surface) {
+    surface = resolve_and_load_icon(class_name, size);
+  }
+
+  /* 5. Cache result (including original class_name for cache lookup consistency) */
   if (cache_count < MAX_CACHE) {
     strncpy(icon_cache[cache_count].class_name, class_name, 127);
+    icon_cache[cache_count].class_name[127] = '\0';
     icon_cache[cache_count].size = size;
     icon_cache[cache_count].surface = surface;
     if (surface) {

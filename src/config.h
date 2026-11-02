@@ -10,6 +10,15 @@ typedef enum {
   MODE_OVERVIEW, /* Show all windows individually */
   MODE_CONTEXT   /* Group tiled windows by workspace + app class */
 } ViewMode;
+
+#define MAX_CUSTOM_ICONS 64
+
+/* Custom per-class icon mapping ([custom_icons] section) */
+typedef struct {
+  char wm_class[128];    /* Window class name (e.g. "kitty-fruity", "code") */
+  char icon_target[512]; /* File path (/..., ~/...) or theme icon name ("kitty") */
+} CustomIconEntry;
+
 /* Theme configuration */
 typedef struct {
   /* Colors (0xRRGGBBAA) */
@@ -54,6 +63,8 @@ typedef struct {
   char icon_theme[64];
   char icon_fallback[64];
   bool show_letter_fallback;
+  CustomIconEntry custom_icons[MAX_CUSTOM_ICONS];
+  int custom_icons_count;
 
   /* View Mode */
   bool follow_monitor;

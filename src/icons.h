@@ -2,8 +2,12 @@
 #ifndef ICONS_H
 #define ICONS_H
 
+#include "config.h"
 #include <cairo/cairo.h>
 #include <stdbool.h>
+
+/* Attach configuration (used for [custom_icons] lookup) */
+void icons_set_config(Config *cfg);
 
 /* Initialize icon cache and theme lookup */
 void icons_init(const char *theme_name, const char *fallback);

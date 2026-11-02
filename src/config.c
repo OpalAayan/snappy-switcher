@@ -196,6 +196,47 @@ static void apply_value(Config *cfg, const char *section, const char *key,
     else if (strcasecmp(key, "icon_letter_size") == 0)
       cfg->icon_letter_size = atoi(val);
   }
+  /* Custom Icons: map window class -> file path or theme icon name */
+  else if (strcasecmp(section, "custom_icons") == 0 ||
+           strcasecmp(section, "custom_icon") == 0) {
+    if (key[0] == '\0' || val[0] == '\0')
+      return;
+
+    char expanded_val[512];
+    if (val[0] == '~' && val[1] == '/') {
+      const char *home = getenv("HOME");
+      if (home && home[0] != '\0') {
+        snprintf(expanded_val, sizeof(expanded_val), "%s%s", home, val + 1);
+      } else {
+        strncpy(expanded_val, val, sizeof(expanded_val) - 1);
+        expanded_val[sizeof(expanded_val) - 1] = '\0';
+      }
+    } else {
+      strncpy(expanded_val, val, sizeof(expanded_val) - 1);
+      expanded_val[sizeof(expanded_val) - 1] = '\0';
+    }
+
+    /* Update existing entry if already present (e.g. second pass in load_config_from) */
+    for (int i = 0; i < cfg->custom_icons_count; i++) {
+      if (strcasecmp(cfg->custom_icons[i].wm_class, key) == 0) {
+        snprintf(cfg->custom_icons[i].icon_target,
+                 sizeof(cfg->custom_icons[i].icon_target), "%s", expanded_val);
+        return;
+      }
+    }
+
+    if (cfg->custom_icons_count < MAX_CUSTOM_ICONS) {
+      CustomIconEntry *entry = &cfg->custom_icons[cfg->custom_icons_count++];
+      snprintf(entry->wm_class, sizeof(entry->wm_class), "%s", key);
+      snprintf(entry->icon_target, sizeof(entry->icon_target), "%s",
+               expanded_val);
+      LOG("Custom icon mapping: '%s' -> '%s'", entry->wm_class,
+          entry->icon_target);
+    } else {
+      LOG("Warning: MAX_CUSTOM_ICONS (%d) reached, ignoring '%s'",
+          MAX_CUSTOM_ICONS, key);
+    }
+  }
 }
 
 /* --- Parse an INI file --- */

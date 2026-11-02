@@ -137,6 +137,23 @@ fallback = hicolor
 show_letter_fallback = true
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
+# │                           CUSTOM ICON OVERRIDES                           │
+# └───────────────────────────────────────────────────────────────────────────┘
+[custom_icons]
+
+# Map a window class (check with `hyprctl clients | grep "class:"`) to either:
+#   1. A theme icon name / alias (e.g. map custom kitty class to standard kitty icon)
+#   2. A direct image path (.svg, .png, .jpg) — supports ~/ and absolute paths
+#
+# Tip for sharp, blurless rendering: use .svg vectors, or size raster images
+# (.png/.jpg) to match your [layout] `icon_size` (or an even multiple like 128x128).
+#
+# kitty-work           = kitty
+# kitty-fruity         = ~/.config/snappy-switcher/icons/fruity.png
+# code                 = vscode
+# md.obsidian.Obsidian = obsidian
+
+# ┌───────────────────────────────────────────────────────────────────────────┐
 # │                              FONT SETTINGS                                │
 # └───────────────────────────────────────────────────────────────────────────┘
 [font]

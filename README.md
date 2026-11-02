@@ -389,6 +389,11 @@ error_font_size = 11
 theme = Tela-dracula
 fallback = Tela-dracula
 show_letter_fallback = true
+[custom_icons]
+# Map window class (`hyprctl clients | grep "class:"`) to an icon name or file path (.svg/.png/.jpg)
+# Tip: use .svg or match [layout] icon_size resolution for sharp, blurless rendering
+# kitty-work = kitty
+# kitty-fruity = ~/.config/snappy-switcher/icons/fruity.png
 [font]
 family = FiraCode Nerd Font
 weight = Bold
